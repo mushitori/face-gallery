@@ -18,6 +18,9 @@ def row_to_job(row, *, queue_position: int | None = None) -> JobOut:
 
 
 def attach_queue_positions(jobs: list[JobOut]) -> list[JobOut]:
-    for i, job in enumerate(jobs):
-        job.queue_position = i + 1
+    pos = 0
+    for job in jobs:
+        if job.status == "queued":
+            pos += 1
+            job.queue_position = pos
     return jobs

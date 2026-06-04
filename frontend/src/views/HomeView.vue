@@ -5,9 +5,7 @@ import AppShell from '../components/layout/AppShell.vue'
 import AddLibraryCard from '../components/library/AddLibraryCard.vue'
 import LibraryActionBar from '../components/library/LibraryActionBar.vue'
 import LibraryGrid from '../components/library/LibraryGrid.vue'
-import ScanProgressPanel from '../components/scan/ScanProgressPanel.vue'
 import { useApiHealth } from '../composables/useApi'
-import { useScanProgress } from '../composables/useScanProgress'
 import { ApiError } from '../api/client'
 import { useJobsStore } from '../stores/jobs'
 import { useLibraryStore } from '../stores/library'
@@ -18,7 +16,6 @@ const scan = useScanStore()
 const jobs = useJobsStore()
 const router = useRouter()
 const { online } = useApiHealth()
-const { isActive } = useScanProgress()
 
 const selectedLib = computed(() => library.selected())
 const actionsDisabled = computed(
@@ -28,7 +25,11 @@ const scanBusy = computed(() => {
   const id = library.selectedId
   if (id == null) return false
   const st = jobs.libraryJobState(id)
-  return st === 'queued' || st === 'running' || isActive.value
+  return st === 'queued' || st === 'paused' || st === 'running'
+})
+const showViewScans = computed(() => {
+  const id = library.selectedId
+  return id != null && jobs.libraryHasInFlightJob(id)
 })
 
 onMounted(async () => {
@@ -60,6 +61,13 @@ function openPersons() {
     router.push({ name: 'persons', params: { libraryId: id } })
   }
 }
+
+function viewScans() {
+  const id = library.selectedId
+  if (id != null) {
+    router.push({ name: 'scans', query: { library_id: String(id) } })
+  }
+}
 </script>
 
 <template>
@@ -67,7 +75,6 @@ function openPersons() {
     <div class="home-layout">
       <aside class="col-left">
         <AddLibraryCard @add="onAdd" />
-        <ScanProgressPanel />
         <p v-if="scan.lastError" class="error-text">{{ scan.lastError }}</p>
         <p v-if="library.error" class="error-text">{{ library.error }}</p>
       </aside>
@@ -86,8 +93,10 @@ function openPersons() {
         <LibraryActionBar
           :disabled="actionsDisabled"
           :scan-busy="scanBusy"
+          :show-view-scans="showViewScans"
           @scan-new="scanSelected(true)"
           @browse-people="openPersons"
+          @view-scans="viewScans"
         />
       </section>
 

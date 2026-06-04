@@ -16,6 +16,10 @@ PROGRESS_INTERVAL_SEC = 0.75
 PROGRESS_EVERY_N_SKIPS = 25
 
 
+class JobPaused(Exception):
+    """Raised when indexing should stop because the user requested a pause."""
+
+
 def iter_image_files(root: Path) -> list[Path]:
     files: list[Path] = []
     for p in root.rglob("*"):
@@ -84,6 +88,7 @@ def index_library(
     on_progress: Callable[[float, str], None] | None = None,
     *,
     force: bool = False,
+    should_pause: Callable[[], bool] | None = None,
 ) -> tuple[int, int, int, int]:
     """Returns (total_files, faces_indexed, files_skipped, files_indexed)."""
     root_path = root_path.resolve()
@@ -95,6 +100,9 @@ def index_library(
     last_progress_ts = 0.0
 
     for idx, file_path in enumerate(files):
+        if should_pause and should_pause():
+            raise JobPaused()
+
         rel = _rel_path(root_path, file_path)
         stat = file_path.stat()
         row = session.execute(

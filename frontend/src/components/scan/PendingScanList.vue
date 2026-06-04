@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import type { Job } from '../../api/types'
-import { libraryScanLabel } from '../../utils/format'
+import { libraryScanLabel, pendingScanDetail } from '../../utils/format'
 
 defineProps<{
   jobs: Job[]
+  disabled?: boolean
+}>()
+
+const emit = defineEmits<{
+  cancel: [jobId: number]
+  resume: [jobId: number]
 }>()
 </script>
 
@@ -31,12 +37,33 @@ defineProps<{
               />
             </svg>
           </span>
-          <span class="name">
-            Library: {{ libraryScanLabel(job.library_root_path, job.library_id) }}
-            <template v-if="job.queue_position">
-              (position {{ job.queue_position }})
-            </template>
-          </span>
+          <div class="content">
+            <span class="name">
+              Library: {{ libraryScanLabel(job.library_root_path, job.library_id) }}
+              <span v-if="pendingScanDetail(job)" class="detail">
+                {{ pendingScanDetail(job) }}
+              </span>
+            </span>
+            <div class="actions">
+              <button
+                v-if="job.status === 'paused'"
+                type="button"
+                class="btn btn-sm"
+                :disabled="disabled"
+                @click="emit('resume', job.id)"
+              >
+                Resume
+              </button>
+              <button
+                type="button"
+                class="btn btn-sm btn-danger"
+                :disabled="disabled"
+                @click="emit('cancel', job.id)"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </li>
       </ul>
     </div>
@@ -81,10 +108,10 @@ defineProps<{
 }
 .item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.85rem;
   padding: 0.9rem 1.1rem;
-  border-radius: 999px;
+  border-radius: 16px;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--glass-border);
   flex-shrink: 0;
@@ -92,13 +119,42 @@ defineProps<{
 .warn-icon {
   flex-shrink: 0;
   display: flex;
+  margin-top: 0.1rem;
+}
+.content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
 }
 .name {
   font-weight: 500;
   font-size: 0.88rem;
   color: var(--text-soft);
   line-height: 1.35;
-  min-width: 0;
   word-break: break-word;
+}
+.detail {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--accent-teal);
+  font-weight: 600;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+}
+.btn-danger {
+  border-color: rgba(248, 113, 113, 0.35);
+  color: var(--danger);
+}
+.btn-danger:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.12);
 }
 </style>

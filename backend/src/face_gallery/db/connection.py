@@ -55,6 +55,14 @@ def _apply_migrations(conn) -> None:  # noqa: ANN001
         )
     except Exception:
         pass
+    try:
+        conn.execute(
+            text(
+                "ALTER TABLE jobs ADD COLUMN pause_requested INTEGER NOT NULL DEFAULT 0"
+            )
+        )
+    except Exception:
+        pass
 
 
 def get_engine() -> Engine:

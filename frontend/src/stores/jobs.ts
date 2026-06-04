@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { api } from '../api/client'
+import { ApiError, api } from '../api/client'
 import type { Job } from '../api/types'
 
-export type LibraryJobState = 'idle' | 'queued' | 'running'
+export type LibraryJobState = 'idle' | 'queued' | 'paused' | 'running'
 
 export const useJobsStore = defineStore('jobs', () => {
   const active = ref<Job | null>(null)
@@ -19,7 +19,7 @@ export const useJobsStore = defineStore('jobs', () => {
     }
     for (const j of queue.value) {
       if (!map.has(j.library_id)) {
-        map.set(j.library_id, 'queued')
+        map.set(j.library_id, j.status === 'paused' ? 'paused' : 'queued')
       }
     }
     return map
@@ -27,6 +27,11 @@ export const useJobsStore = defineStore('jobs', () => {
 
   function libraryJobState(libraryId: number): LibraryJobState {
     return libraryJobMap.value.get(libraryId) ?? 'idle'
+  }
+
+  function libraryHasInFlightJob(libraryId: number): boolean {
+    const st = libraryJobState(libraryId)
+    return st === 'running' || st === 'queued' || st === 'paused'
   }
 
   async function fetchDashboard() {
@@ -44,6 +49,33 @@ export const useJobsStore = defineStore('jobs', () => {
     }
   }
 
+  async function runJobAction(action: (jobId: number) => Promise<void>, jobId: number) {
+    error.value = null
+    try {
+      await action(jobId)
+      await fetchDashboard()
+    } catch (e) {
+      error.value = e instanceof ApiError ? e.message : e instanceof Error ? e.message : String(e)
+      throw e
+    }
+  }
+
+  function pauseJob(jobId: number) {
+    return runJobAction(api.pauseJob, jobId)
+  }
+
+  function cancelJob(jobId: number) {
+    return runJobAction(api.cancelJob, jobId)
+  }
+
+  function resumeJob(jobId: number) {
+    return runJobAction(api.resumeJob, jobId)
+  }
+
+  function retryJob(jobId: number) {
+    return runJobAction(api.retryJob, jobId)
+  }
+
   return {
     active,
     queue,
@@ -51,6 +83,11 @@ export const useJobsStore = defineStore('jobs', () => {
     loading,
     error,
     libraryJobState,
+    libraryHasInFlightJob,
     fetchDashboard,
+    pauseJob,
+    cancelJob,
+    resumeJob,
+    retryJob,
   }
 })

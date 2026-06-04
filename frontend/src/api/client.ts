@@ -64,6 +64,14 @@ export const api = {
       { method: 'POST' },
     ),
   getJob: (jobId: number) => request<Job>(`/jobs/${jobId}`),
+  pauseJob: (jobId: number) =>
+    request<void>(`/jobs/${jobId}/pause`, { method: 'POST' }),
+  cancelJob: (jobId: number) =>
+    request<void>(`/jobs/${jobId}/cancel`, { method: 'POST' }),
+  resumeJob: (jobId: number) =>
+    request<void>(`/jobs/${jobId}/resume`, { method: 'POST' }),
+  retryJob: (jobId: number) =>
+    request<void>(`/jobs/${jobId}/retry`, { method: 'POST' }),
   getJobsDashboard: (historyLimit = 50) =>
     request<JobsDashboard>(`/jobs/dashboard?history_limit=${historyLimit}`),
   listJobs: (bucket: 'active' | 'queue' | 'history', limit = 50) =>

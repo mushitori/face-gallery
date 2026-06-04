@@ -11,6 +11,7 @@ export interface Job {
   id: number
   library_id: number
   type: string
+  /** queued | paused | indexing | clustering | done | failed | cancelled */
   status: string
   progress: number
   message: string | null

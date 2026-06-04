@@ -2,11 +2,13 @@
 defineProps<{
   disabled: boolean
   scanBusy: boolean
+  showViewScans: boolean
 }>()
 
 const emit = defineEmits<{
   scanNew: []
   browsePeople: []
+  viewScans: []
 }>()
 </script>
 
@@ -20,11 +22,16 @@ const emit = defineEmits<{
     >
       Rescan Selected
     </button>
-    <!-- <button type="button" class="btn" :disabled="disabled || scanBusy" @click="emit('rescanAll')">
-      Rescan all
-    </button> -->
     <button type="button" class="btn" :disabled="disabled" @click="emit('browsePeople')">
       Browse people
+    </button>
+    <button
+      v-if="showViewScans"
+      type="button"
+      class="btn"
+      @click="emit('viewScans')"
+    >
+      View In Scan History
     </button>
   </div>
 </template>

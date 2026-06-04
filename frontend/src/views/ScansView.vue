@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import AppShell from '../components/layout/AppShell.vue'
 import ActiveScanCard from '../components/scan/ActiveScanCard.vue'
@@ -8,6 +8,7 @@ import ScanHistoryTable from '../components/scan/ScanHistoryTable.vue'
 import { useJobsStore } from '../stores/jobs'
 
 const jobs = useJobsStore()
+const pausing = ref(false)
 let timer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
@@ -18,6 +19,29 @@ onMounted(() => {
 onUnmounted(() => {
   if (timer) clearInterval(timer)
 })
+
+async function onPause() {
+  const active = jobs.active
+  if (!active || pausing.value) return
+  pausing.value = true
+  try {
+    await jobs.pauseJob(active.id)
+  } finally {
+    pausing.value = false
+  }
+}
+
+async function onCancel(jobId: number) {
+  await jobs.cancelJob(jobId)
+}
+
+async function onResume(jobId: number) {
+  await jobs.resumeJob(jobId)
+}
+
+async function onRetry(jobId: number) {
+  await jobs.retryJob(jobId)
+}
 </script>
 
 <template>
@@ -38,7 +62,13 @@ onUnmounted(() => {
       <div class="queue-col">
         <h2 class="section-label">Active scans</h2>
         <div class="panel-slot">
-          <ActiveScanCard v-if="jobs.active" :job="jobs.active" variant="ring" />
+          <ActiveScanCard
+            v-if="jobs.active"
+            :job="jobs.active"
+            variant="ring"
+            :pausing="pausing"
+            @pause="onPause"
+          />
           <div v-else class="empty-active glass-panel">
             <p>No scan running right now.</p>
           </div>
@@ -48,12 +78,21 @@ onUnmounted(() => {
       <div class="queue-col pending-col">
         <h2 class="section-label">Pending scans</h2>
         <div class="panel-slot">
-          <PendingScanList :jobs="jobs.queue" />
+          <PendingScanList
+            :jobs="jobs.queue"
+            :disabled="jobs.loading"
+            @cancel="onCancel"
+            @resume="onResume"
+          />
         </div>
       </div>
     </div>
 
-    <ScanHistoryTable :jobs="jobs.history" />
+    <ScanHistoryTable
+      :jobs="jobs.history"
+      :disabled="jobs.loading"
+      @retry="onRetry"
+    />
   </AppShell>
 </template>
 
@@ -90,7 +129,7 @@ onUnmounted(() => {
 }
 .queue-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr 1fr;
   gap: 1.25rem;
   align-items: stretch;
   margin-bottom: 2rem;
@@ -103,7 +142,7 @@ onUnmounted(() => {
 }
 .pending-col {
   width: 100%;
-  max-width: 380px;
+  /* max-width: 380px; */
 }
 .section-label {
   margin: 0 0 0.85rem;
@@ -137,7 +176,7 @@ onUnmounted(() => {
   margin: 0;
 }
 .pending-col .panel-slot {
-  max-width: 380px;
+  /* max-width: 380px; */
   width: 100%;
 }
 .pending-col .panel-slot :deep(.panel) {

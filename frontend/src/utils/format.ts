@@ -131,6 +131,20 @@ export function parseCurrentFile(message: string | null): string | null {
   return m?.[1] ?? null
 }
 
+export function pendingScanDetail(job: {
+  status: string
+  progress: number
+  queue_position: number | null
+}): string {
+  if (job.status === 'paused') {
+    return `Processed ${Math.round(job.progress * 100)}%`
+  }
+  if (job.queue_position != null) {
+    return `(position ${job.queue_position})`
+  }
+  return ''
+}
+
 export function parseJobSummary(message: string | null): string {
   if (!message) return '—'
   if (message.startsWith('Complete.')) return message

@@ -10,6 +10,11 @@ import {
 
 defineProps<{
   jobs: Job[]
+  disabled?: boolean
+}>()
+
+const emit = defineEmits<{
+  retry: [jobId: number]
 }>()
 </script>
 
@@ -27,6 +32,7 @@ defineProps<{
             <th>Total faces found</th>
             <th>New persons created</th>
             <th>Duration</th>
+            <th />
           </tr>
         </thead>
         <tbody>
@@ -37,6 +43,10 @@ defineProps<{
               <span v-if="job.status === 'done'" class="status done">
                 <span class="status-dot" aria-hidden="true" />
                 Completed
+              </span>
+              <span v-else-if="job.status === 'cancelled'" class="status cancelled">
+                <span class="status-dot cancelled-dot" aria-hidden="true" />
+                Cancelled
               </span>
               <span v-else class="status failed">
                 <span class="status-dot failed-dot" aria-hidden="true" />
@@ -58,6 +68,17 @@ defineProps<{
               }}
             </td>
             <td class="duration">{{ formatDurationMs(jobElapsedMs(job)) }}</td>
+            <td class="actions">
+              <button
+                v-if="job.status === 'cancelled'"
+                type="button"
+                class="btn btn-sm"
+                :disabled="disabled"
+                @click="emit('retry', job.id)"
+              >
+                Start scan again
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -115,6 +136,13 @@ tbody tr:hover {
 .duration {
   white-space: nowrap;
 }
+.actions {
+  white-space: nowrap;
+}
+.btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+}
 .num {
   color: var(--text);
   font-weight: 500;
@@ -131,6 +159,9 @@ tbody tr:hover {
 .status.failed {
   color: var(--danger);
 }
+.status.cancelled {
+  color: #fb923c;
+}
 .status-dot {
   width: 10px;
   height: 10px;
@@ -141,6 +172,10 @@ tbody tr:hover {
 }
 .status-dot.failed-dot {
   background: var(--danger);
+  box-shadow: none;
+}
+.status-dot.cancelled-dot {
+  background: #fb923c;
   box-shadow: none;
 }
 </style>

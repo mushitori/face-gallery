@@ -7,7 +7,7 @@ from sqlalchemy import text
 from face_gallery.db.connection import commit_session, get_engine, get_session
 from face_gallery.db.retry import run_with_retry
 from face_gallery.services.clusterer import cluster_library_faces
-from face_gallery.services.indexer import index_library
+from face_gallery.services.indexer import JobPaused, index_library
 from face_gallery.ml.insightface_app import warmup
 
 _UPDATE_SQL = text(
@@ -33,6 +33,44 @@ def _update_job(job_id: int, status: str, progress: float, message: str | None) 
     run_with_retry(_write)
 
 
+def pause_requested(job_id: int) -> bool:
+    engine = get_engine()
+
+    def _read() -> bool:
+        with engine.begin() as conn:
+            row = conn.execute(
+                text("SELECT pause_requested FROM jobs WHERE id = :jid"),
+                {"jid": job_id},
+            ).fetchone()
+        return bool(row and row[0])
+
+    return run_with_retry(_read)
+
+
+def _clear_pause_requested(job_id: int) -> None:
+    engine = get_engine()
+
+    def _write() -> None:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    UPDATE jobs SET pause_requested = 0, updated_at = datetime('now')
+                    WHERE id = :jid
+                    """
+                ),
+                {"jid": job_id},
+            )
+
+    run_with_retry(_write)
+
+
+def _apply_pause(job_id: int, progress: float) -> None:
+    pct = int(progress * 100)
+    _update_job(job_id, "paused", progress, f"Processed {pct}%")
+    _clear_pause_requested(job_id)
+
+
 def _clear_library_clusters(session, library_id: int) -> None:
     session.execute(
         text(
@@ -53,12 +91,15 @@ def _clear_library_clusters(session, library_id: int) -> None:
 
 
 def _run_scan(job_id: int, library_id: int, root_path: str, *, force: bool = False) -> None:
+    last_progress = 0.05
     try:
         _update_job(job_id, "indexing", 0.02, "Loading face models…")
         warmup()
 
         def on_progress(p: float, msg: str) -> None:
-            _update_job(job_id, "indexing", min(0.85, p), msg)
+            nonlocal last_progress
+            last_progress = min(0.85, p)
+            _update_job(job_id, "indexing", last_progress, msg)
 
         session = get_session()
         try:
@@ -66,13 +107,18 @@ def _run_scan(job_id: int, library_id: int, root_path: str, *, force: bool = Fal
                 _update_job(job_id, "indexing", 0.04, "Clearing old person clusters…")
                 _clear_library_clusters(session, library_id)
             _update_job(job_id, "indexing", 0.05, "Scanning images…")
+            last_progress = 0.05
             total, _faces_new, skipped, indexed = index_library(
                 session,
                 library_id,
                 Path(root_path),
                 on_progress=on_progress,
                 force=force,
+                should_pause=lambda: pause_requested(job_id),
             )
+        except JobPaused:
+            _apply_pause(job_id, last_progress)
+            return
         finally:
             session.close()
 

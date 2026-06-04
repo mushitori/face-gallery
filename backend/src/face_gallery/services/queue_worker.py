@@ -11,7 +11,7 @@ from face_gallery.services.job_runner import run_queued_job
 
 logger = logging.getLogger(__name__)
 
-ACTIVE_JOB_STATUSES = ("queued", "indexing", "clustering")
+ACTIVE_JOB_STATUSES = ("queued", "paused", "indexing", "clustering")
 
 _worker_thread: threading.Thread | None = None
 _wake = threading.Event()
@@ -41,7 +41,7 @@ def library_has_active_job(db: Session, library_id: int) -> bool:
         text(
             """
             SELECT 1 FROM jobs
-            WHERE library_id = :lid AND status IN ('queued', 'indexing', 'clustering')
+            WHERE library_id = :lid AND status IN ('queued', 'paused', 'indexing', 'clustering')
             LIMIT 1
             """
         ),

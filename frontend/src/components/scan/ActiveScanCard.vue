@@ -11,8 +11,14 @@ import {
 const props = defineProps<{
   job: Job
   variant?: 'ring' | 'bar'
+  pausing?: boolean
 }>()
 
+const emit = defineEmits<{
+  pause: []
+}>()
+
+const canPause = computed(() => props.job.status === 'indexing')
 const percent = computed(() => Math.round(props.job.progress * 100))
 const elapsed = computed(() => formatDurationMs(jobElapsedMs(props.job)))
 const libraryName = computed(() =>
@@ -26,17 +32,28 @@ const useRing = computed(() => (props.variant ?? 'ring') === 'ring')
   <article class="card glass-panel">
     <div class="card-top">
       <h3>Library: {{ libraryName }}</h3>
-      <span class="run-icon" aria-hidden="true" title="Scan running">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" />
-          <path
-            d="M12 7v5l3 2"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-          />
-        </svg>
-      </span>
+      <div class="card-actions">
+        <button
+          v-if="canPause"
+          type="button"
+          class="btn btn-sm"
+          :disabled="pausing"
+          @click="emit('pause')"
+        >
+          {{ pausing ? 'Pausing…' : 'Pause' }}
+        </button>
+        <span class="run-icon" aria-hidden="true" title="Scan running">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" />
+            <path
+              d="M12 7v5l3 2"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+            />
+          </svg>
+        </span>
+      </div>
     </div>
 
     <div v-if="useRing" class="layout-ring">
@@ -96,6 +113,16 @@ const useRing = computed(() => (props.variant ?? 'ring') === 'ring')
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 1.15rem;
+}
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+.btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
 }
 h3 {
   margin: 0;
