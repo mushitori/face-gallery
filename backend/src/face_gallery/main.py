@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 from contextlib import asynccontextmanager
@@ -14,6 +15,11 @@ _shutdown_requested = False
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s %(name)s: %(message)s",
+    )
+    logging.getLogger("face_gallery").setLevel(logging.INFO)
     settings = get_settings()
     settings.resolve_paths()
     init_db()

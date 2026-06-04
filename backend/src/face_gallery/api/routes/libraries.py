@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -8,6 +9,7 @@ from face_gallery.api.deps import get_db
 from face_gallery.models.photo import LibraryCreate, LibraryOut
 from face_gallery.services.job_runner import start_scan_job_async
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/libraries", tags=["libraries"])
 
 
@@ -31,7 +33,13 @@ def create_library(body: LibraryCreate, db: Session = Depends(get_db)) -> Librar
         {"p": str(root)},
     ).fetchone()
     if existing:
-        return LibraryOut(id=existing[0], root_path=existing[1], last_scan_at=existing[2])
+        out = LibraryOut(id=existing[0], root_path=existing[1], last_scan_at=existing[2])
+        logger.info(
+            "create_library: existing library id=%s path=%s",
+            out.id,
+            out.root_path,
+        )
+        return out
     db.execute(
         text("INSERT INTO libraries (root_path) VALUES (:p)"),
         {"p": str(root)},
@@ -42,7 +50,9 @@ def create_library(body: LibraryCreate, db: Session = Depends(get_db)) -> Librar
         {"p": str(root)},
     ).fetchone()
     assert row
-    return LibraryOut(id=row[0], root_path=row[1], last_scan_at=row[2])
+    out = LibraryOut(id=row[0], root_path=row[1], last_scan_at=row[2])
+    logger.info("create_library: inserted id=%s path=%s", out.id, out.root_path)
+    return out
 
 
 @router.post("/{library_id}/scan")
@@ -60,7 +70,7 @@ async def start_scan(
     ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Library not found")
-    db.execute(
+    insert = db.execute(
         text(
             """
             INSERT INTO jobs (library_id, type, status, progress, message)
@@ -69,7 +79,21 @@ async def start_scan(
         ),
         {"lid": library_id},
     )
+    job_id = int(insert.lastrowid or 0)
     db.commit()
-    job_id = db.execute(text("SELECT last_insert_rowid()")).scalar_one()
+    logger.info(
+        "start_scan: library_id=%s job_id=%s force=%s root_path=%s",
+        library_id,
+        job_id,
+        force,
+        row[0],
+    )
+    if job_id <= 0:
+        logger.error(
+            "start_scan: invalid job_id=%s after INSERT (lastrowid=%s)",
+            job_id,
+            insert.lastrowid,
+        )
+        raise HTTPException(status_code=500, detail="Failed to create scan job")
     await start_scan_job_async(job_id, library_id, row[0], force=force)
     return {"job_id": job_id}

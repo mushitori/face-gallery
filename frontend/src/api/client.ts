@@ -29,17 +29,27 @@ export const api = {
   base,
   health: () => request<{ status: string }>('/health'),
   listLibraries: () => request<Library[]>('/libraries'),
-  createLibrary: (root_path: string) =>
-    request<Library>('/libraries', {
+  createLibrary: async (root_path: string) => {
+    const lib = await request<Library>('/libraries', {
       method: 'POST',
       body: JSON.stringify({ root_path }),
-    }),
-  startScan: (libraryId: number, force = false) =>
-    request<{ job_id: number }>(
+    })
+    console.log('[FaceGallery] api.createLibrary', { root_path, lib })
+    return lib
+  },
+  startScan: async (libraryId: number, force = false) => {
+    const result = await request<{ job_id: number }>(
       `/libraries/${libraryId}/scan${force ? '?force=true' : ''}`,
       { method: 'POST' },
-    ),
-  getJob: (jobId: number) => request<Job>(`/jobs/${jobId}`),
+    )
+    console.log('[FaceGallery] api.startScan', { libraryId, force, result })
+    return result
+  },
+  getJob: async (jobId: number) => {
+    const job = await request<Job>(`/jobs/${jobId}`)
+    console.log('[FaceGallery] api.getJob', { jobId, job })
+    return job
+  },
   listPersons: (libraryId?: number) => {
     const q = libraryId != null ? `?library_id=${libraryId}` : ''
     return request<PersonListResponse>(`/persons${q}`)

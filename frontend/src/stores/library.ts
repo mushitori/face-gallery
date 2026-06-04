@@ -26,6 +26,7 @@ export const useLibraryStore = defineStore('library', () => {
 
   async function addLibrary(rootPath: string) {
     const lib = await api.createLibrary(rootPath)
+    console.log('[FaceGallery] addLibrary', { rootPath, lib })
     await fetchLibraries()
     selectedId.value = lib.id
     return lib

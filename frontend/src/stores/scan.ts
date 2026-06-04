@@ -3,6 +3,10 @@ import { ref } from 'vue'
 import { api } from '../api/client'
 import type { Job } from '../api/types'
 
+function isValidJobId(jobId: number): boolean {
+  return Number.isFinite(jobId) && jobId > 0
+}
+
 export const useScanStore = defineStore('scan', () => {
   const activeJobId = ref<number | null>(null)
   const job = ref<Job | null>(null)
@@ -18,14 +22,28 @@ export const useScanStore = defineStore('scan', () => {
   }
 
   async function pollOnce() {
-    if (activeJobId.value == null) return
-    job.value = await api.getJob(activeJobId.value)
-    if (job.value.status === 'done' || job.value.status === 'failed') {
+    const id = activeJobId.value
+    if (id == null || !isValidJobId(id)) return
+    try {
+      job.value = await api.getJob(id)
+      if (job.value.status === 'done' || job.value.status === 'failed') {
+        stopPolling()
+      }
+    } catch (e) {
+      console.warn('[FaceGallery] pollOnce failed', { jobId: id, error: e })
       stopPolling()
     }
   }
 
   function startPolling(jobId: number) {
+    console.log('[FaceGallery] startPolling', { jobId })
+    if (!isValidJobId(jobId)) {
+      console.warn('[FaceGallery] startPolling skipped: invalid job id', jobId)
+      stopPolling()
+      activeJobId.value = null
+      job.value = null
+      return
+    }
     activeJobId.value = jobId
     stopPolling()
     polling.value = true
