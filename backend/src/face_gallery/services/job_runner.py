@@ -43,7 +43,26 @@ def _update_job(job_id: int, status: str, progress: float, message: str | None) 
             time.sleep(0.05 * (attempt + 1))
 
 
-def _run_scan(job_id: int, library_id: int, root_path: str) -> None:
+def _clear_library_clusters(session, library_id: int) -> None:
+    session.execute(
+        text(
+            "DELETE FROM photo_persons WHERE person_id IN "
+            "(SELECT id FROM persons WHERE library_id = :lid)"
+        ),
+        {"lid": library_id},
+    )
+    session.execute(text("DELETE FROM persons WHERE library_id = :lid"), {"lid": library_id})
+    session.execute(
+        text(
+            "UPDATE faces SET person_id = NULL WHERE photo_id IN "
+            "(SELECT id FROM photos WHERE library_id = :lid)"
+        ),
+        {"lid": library_id},
+    )
+    session.commit()
+
+
+def _run_scan(job_id: int, library_id: int, root_path: str, *, force: bool = False) -> None:
     try:
         _update_job(job_id, "indexing", 0.02, "Loading face models…")
         warmup()
@@ -53,8 +72,17 @@ def _run_scan(job_id: int, library_id: int, root_path: str) -> None:
 
         session = get_session()
         try:
+            if force:
+                _update_job(job_id, "indexing", 0.04, "Clearing old person clusters…")
+                _clear_library_clusters(session, library_id)
             _update_job(job_id, "indexing", 0.05, "Scanning images…")
-            index_library(session, library_id, Path(root_path), on_progress=on_progress)
+            total, faces_new, skipped, indexed = index_library(
+                session,
+                library_id,
+                Path(root_path),
+                on_progress=on_progress,
+                force=force,
+            )
         finally:
             session.close()
 
@@ -62,13 +90,28 @@ def _run_scan(job_id: int, library_id: int, root_path: str) -> None:
         session = get_session()
         try:
             n = cluster_library_faces(session, library_id)
+            face_total = session.execute(
+                text(
+                    """
+                    SELECT COUNT(*) FROM faces f
+                    JOIN photos p ON p.id = f.photo_id
+                    WHERE p.library_id = :lid
+                    """
+                ),
+                {"lid": library_id},
+            ).scalar_one()
         finally:
             session.close()
 
-        _update_job(job_id, "done", 1.0, f"Complete. {n} persons found.")
+        summary = (
+            f"Complete. {n} persons from {face_total} faces "
+            f"({indexed} photos indexed, {skipped} skipped, {total} total)."
+        )
+        _update_job(job_id, "done", 1.0, summary)
     except Exception as exc:  # noqa: BLE001
+        err = f"{type(exc).__name__}: {exc}" if str(exc) else f"{type(exc).__name__}"
         try:
-            _update_job(job_id, "failed", 0.0, str(exc)[:500])
+            _update_job(job_id, "failed", 0.0, err[:500])
         except Exception:
             pass
     finally:
@@ -77,7 +120,9 @@ def _run_scan(job_id: int, library_id: int, root_path: str) -> None:
             _active_libraries.discard(library_id)
 
 
-def start_scan_job(job_id: int, library_id: int, root_path: str) -> None:
+def start_scan_job(
+    job_id: int, library_id: int, root_path: str, *, force: bool = False
+) -> None:
     with _lock:
         if library_id in _active_libraries:
             _update_job(job_id, "failed", 0.0, "A scan is already running for this library.")
@@ -89,6 +134,7 @@ def start_scan_job(job_id: int, library_id: int, root_path: str) -> None:
         t = threading.Thread(
             target=_run_scan,
             args=(job_id, library_id, root_path),
+            kwargs={"force": force},
             daemon=True,
             name=f"scan-job-{job_id}",
         )
@@ -96,5 +142,7 @@ def start_scan_job(job_id: int, library_id: int, root_path: str) -> None:
         t.start()
 
 
-async def start_scan_job_async(job_id: int, library_id: int, root_path: str) -> None:
-    await asyncio.to_thread(start_scan_job, job_id, library_id, root_path)
+async def start_scan_job_async(
+    job_id: int, library_id: int, root_path: str, *, force: bool = False
+) -> None:
+    await asyncio.to_thread(start_scan_job, job_id, library_id, root_path, force=force)

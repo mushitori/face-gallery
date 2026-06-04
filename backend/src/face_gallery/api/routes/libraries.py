@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -46,7 +46,14 @@ def create_library(body: LibraryCreate, db: Session = Depends(get_db)) -> Librar
 
 
 @router.post("/{library_id}/scan")
-async def start_scan(library_id: int, db: Session = Depends(get_db)) -> dict[str, int]:
+async def start_scan(
+    library_id: int,
+    force: bool = Query(
+        default=False,
+        description="Re-process every image (ignore unchanged mtime). Use after a failed partial scan.",
+    ),
+    db: Session = Depends(get_db),
+) -> dict[str, int]:
     row = db.execute(
         text("SELECT root_path FROM libraries WHERE id = :id"),
         {"id": library_id},
@@ -64,5 +71,5 @@ async def start_scan(library_id: int, db: Session = Depends(get_db)) -> dict[str
     )
     db.commit()
     job_id = db.execute(text("SELECT last_insert_rowid()")).scalar_one()
-    await start_scan_job_async(job_id, library_id, row[0])
+    await start_scan_job_async(job_id, library_id, row[0], force=force)
     return {"job_id": job_id}

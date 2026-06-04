@@ -7,7 +7,6 @@ from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from face_gallery.config import get_settings
 from face_gallery.services.embedder import detect_faces
 from face_gallery.services.thumbnail import embedding_to_blob, face_thumbnail_bytes
 
@@ -50,12 +49,16 @@ def index_library(
     library_id: int,
     root_path: Path,
     on_progress: Callable[[float, str], None] | None = None,
-) -> tuple[int, int]:
-    settings = get_settings()
+    *,
+    force: bool = False,
+) -> tuple[int, int, int, int]:
+    """Returns (total_files, faces_indexed, files_skipped, files_indexed)."""
     root_path = root_path.resolve()
     files = iter_image_files(root_path)
     total = len(files)
     processed_faces = 0
+    files_skipped = 0
+    files_indexed = 0
     last_progress_ts = 0.0
 
     for idx, file_path in enumerate(files):
@@ -63,18 +66,29 @@ def index_library(
         stat = file_path.stat()
         row = session.execute(
             text(
-                "SELECT id, mtime, size FROM photos WHERE library_id = :lid AND path = :path"
+                """
+                SELECT id, mtime, size, face_count FROM photos
+                WHERE library_id = :lid AND path = :path
+                """
             ),
             {"lid": library_id, "path": rel},
         ).fetchone()
 
-        if row and row[1] == stat.st_mtime and row[2] == stat.st_size:
+        # Skip unchanged files only when we already indexed faces (failed runs leave face_count=0).
+        if (
+            not force
+            and row
+            and row[1] == stat.st_mtime
+            and row[2] == stat.st_size
+            and int(row[3] or 0) > 0
+        ):
             session.commit()
             if on_progress and total and _should_report_progress(
                 idx, total, last_progress_ts
             ):
                 on_progress((idx + 1) / total * 0.85, f"Skipped {rel}")
                 last_progress_ts = time.monotonic()
+            files_skipped += 1
             continue
 
         if row:
@@ -153,6 +167,7 @@ def index_library(
             {"fc": len(faces), "w": w, "h": h, "id": photo_id},
         )
         session.commit()
+        files_indexed += 1
 
         if on_progress and total and _should_report_progress(
             idx, total, last_progress_ts, force=True
@@ -165,4 +180,4 @@ def index_library(
         {"lid": library_id},
     )
     session.commit()
-    return total, processed_faces
+    return total, processed_faces, files_skipped, files_indexed

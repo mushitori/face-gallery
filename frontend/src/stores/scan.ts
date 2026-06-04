@@ -33,8 +33,8 @@ export const useScanStore = defineStore('scan', () => {
     timer = setInterval(() => void pollOnce(), 1000)
   }
 
-  async function startScan(libraryId: number) {
-    const { job_id } = await api.startScan(libraryId)
+  async function startScan(libraryId: number, force = false) {
+    const { job_id } = await api.startScan(libraryId, force)
     startPolling(job_id)
     return job_id
   }

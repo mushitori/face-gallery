@@ -1,3 +1,7 @@
 # Place InsightFace buffalo_l model files here (offline bundle).
 # Download: https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip
 # Extract so this folder contains .onnx files (e.g. det_10g.onnx, w600k_r50.onnx).
+#
+# If models were auto-downloaded to AppData, they may be under:
+#   %LOCALAPPDATA%\FaceGallery\models\models\buffalo_l\
+# The app finds them automatically; optional: move .onnx files into this folder.

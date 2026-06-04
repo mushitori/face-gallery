@@ -112,7 +112,11 @@ Data directory: `%LOCALAPPDATA%\FaceGallery\` (database + thumb cache).
 
 ## Offline models
 
-On first scan, InsightFace may download `buffalo_l` to its cache if models are missing from `backend/models/buffalo_l/`. For fully offline installs, extract the zip into that folder before scanning.
+On first scan, InsightFace downloads `buffalo_l` into `%LOCALAPPDATA%\FaceGallery\models\buffalo_l\`. If you see an extra nested `models\models\buffalo_l` folder from an older build, restart the API once — it will move `.onnx` files to the correct location automatically.
+
+For fully offline installs, extract [buffalo_l.zip](https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip) into `backend/models/buffalo_l/` or `%LOCALAPPDATA%\FaceGallery\models\buffalo_l\`.
+
+**0 persons after scan?** Earlier failed runs stored photos with `face_count = 0` but unchanged file dates, so the next scan skipped them. **Scan new/changed** now re-indexes those photos automatically. You can still use **Rescan all** (`?force=true`) to rebuild every face and person cluster from scratch.
 
 ## License
 

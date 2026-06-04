@@ -34,8 +34,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ root_path }),
     }),
-  startScan: (libraryId: number) =>
-    request<{ job_id: number }>(`/libraries/${libraryId}/scan`, { method: 'POST' }),
+  startScan: (libraryId: number, force = false) =>
+    request<{ job_id: number }>(
+      `/libraries/${libraryId}/scan${force ? '?force=true' : ''}`,
+      { method: 'POST' },
+    ),
   getJob: (jobId: number) => request<Job>(`/jobs/${jobId}`),
   listPersons: (libraryId?: number) => {
     const q = libraryId != null ? `?library_id=${libraryId}` : ''

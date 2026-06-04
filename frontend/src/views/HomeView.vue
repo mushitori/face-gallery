@@ -15,13 +15,13 @@ onMounted(() => void library.fetchLibraries())
 
 async function onAdd(path: string) {
   const lib = await library.addLibrary(path)
-  await scan.startScan(lib.id)
+  await scan.startScan(lib.id, false)
 }
 
-async function scanSelected() {
+async function scanSelected(force = false) {
   const lib = library.selected()
   if (!lib) return
-  await scan.startScan(lib.id)
+  await scan.startScan(lib.id, force)
 }
 
 function openPersons() {
@@ -49,7 +49,12 @@ function openPersons() {
         </li>
       </ul>
       <div class="actions">
-        <button type="button" class="btn primary" @click="scanSelected">Scan selected</button>
+        <button type="button" class="btn primary" @click="scanSelected(false)">
+          Scan new/changed
+        </button>
+        <button type="button" class="btn" @click="scanSelected(true)">
+          Rescan all
+        </button>
         <button type="button" class="btn" @click="openPersons">Browse people</button>
       </div>
     </section>

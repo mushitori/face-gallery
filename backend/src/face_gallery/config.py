@@ -1,3 +1,4 @@
+import shutil
 from functools import lru_cache
 from pathlib import Path
 
@@ -38,16 +39,26 @@ class Settings(BaseSettings):
             self.db_path = self.app_data_dir / "gallery.db"
         if self.thumb_cache_dir is None:
             self.thumb_cache_dir = self.app_data_dir / "thumbs"
+        canonical = self.app_data_dir / "models" / "buffalo_l"
+        legacy = self.app_data_dir / "models" / "models" / "buffalo_l"
         if self.model_dir is None:
             repo_models = Path(__file__).resolve().parents[3] / "models" / "buffalo_l"
-            if repo_models.exists():
+            if repo_models.exists() and any(repo_models.glob("*.onnx")):
                 self.model_dir = repo_models
             else:
-                self.model_dir = self.app_data_dir / "models" / "buffalo_l"
+                self.model_dir = canonical
 
         self.app_data_dir.mkdir(parents=True, exist_ok=True)
         self.thumb_cache_dir.mkdir(parents=True, exist_ok=True)
-        self.model_dir.mkdir(parents=True, exist_ok=True)
+        canonical.mkdir(parents=True, exist_ok=True)
+
+        # Earlier builds used root=.../models, so InsightFace downloaded to models/models/buffalo_l
+        if legacy.is_dir() and any(legacy.glob("*.onnx")) and not any(canonical.glob("*.onnx")):
+            for onnx in legacy.glob("*.onnx"):
+                shutil.move(str(onnx), str(canonical / onnx.name))
+            self.model_dir = canonical
+        elif canonical.is_dir() and any(canonical.glob("*.onnx")):
+            self.model_dir = canonical
 
 
 @lru_cache
