@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import ScansView from '../views/ScansView.vue'
 import PersonsView from '../views/PersonsView.vue'
 import PersonPhotosView from '../views/PersonPhotosView.vue'
 import SettingsView from '../views/SettingsView.vue'
@@ -8,6 +9,7 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', name: 'home', component: HomeView },
+    { path: '/scans', name: 'scans', component: ScansView },
     {
       path: '/libraries/:libraryId/persons',
       name: 'persons',

@@ -40,55 +40,101 @@ async function submit() {
 </script>
 
 <template>
-  <section class="card">
+  <section class="card glass-panel-strong">
     <h2>Add photo library</h2>
     <p class="hint">Choose a folder on disk. All scanning runs locally in Python.</p>
-    <div class="actions">
-      <button type="button" class="btn primary" :disabled="busy" @click="pickFolder">
-        Choose folder…
-      </button>
-    </div>
+    <button type="button" class="btn-gradient block" :disabled="busy" @click="pickFolder">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linejoin="round"
+        />
+      </svg>
+      Choose folder…
+    </button>
     <label class="field">
       <span>Or enter path</span>
       <input v-model="manualPath" type="text" placeholder="D:\Photos" />
     </label>
-    <button type="button" class="btn" :disabled="busy || !manualPath.trim()" @click="submit">
+    <button
+      type="button"
+      class="btn-add"
+      :disabled="busy || !manualPath.trim()"
+      @click="submit"
+    >
       Add library
     </button>
-    <p v-if="error" class="error">{{ error }}</p>
+    <p v-if="error" class="error-text">{{ error }}</p>
   </section>
 </template>
 
 <style scoped>
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1.25rem;
-  max-width: 520px;
+  padding: 1.5rem 1.5rem 1.35rem;
+  height: 100%;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+}
+h2 {
+  margin-bottom: 0.5rem;
 }
 .hint {
   color: var(--muted);
   font-size: 0.9rem;
-}
-.actions {
-  margin: 1rem 0;
+  margin: 0 0 1.25rem;
+  line-height: 1.45;
 }
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 0.75rem;
+  gap: 0.4rem;
+  margin: 1.1rem 0 0.85rem;
+  font-size: 0.85rem;
+  color: var(--muted);
 }
 .field input {
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--bg);
+  padding: 0.65rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  background: rgba(8, 10, 18, 0.55);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.field input::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+.field input:focus {
+  outline: none;
+  border-color: rgba(45, 212, 191, 0.45);
+}
+.btn-add {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.btn-add:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
   color: var(--text);
 }
-.error {
-  color: #f07178;
-  font-size: 0.9rem;
+.btn-add:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.error-text {
+  margin-top: 0.75rem;
 }
 </style>

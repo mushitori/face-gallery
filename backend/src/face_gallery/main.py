@@ -9,6 +9,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from face_gallery.api.routes import health, jobs, libraries, persons, thumbs
 from face_gallery.config import get_settings
 from face_gallery.db.connection import init_db
+from face_gallery.services.queue_worker import (
+    reset_stuck_jobs_on_startup,
+    start_queue_worker,
+    stop_queue_worker,
+)
 
 _shutdown_requested = False
 
@@ -23,7 +28,12 @@ async def lifespan(_app: FastAPI):
     settings = get_settings()
     settings.resolve_paths()
     init_db()
+    n = reset_stuck_jobs_on_startup()
+    if n:
+        logging.getLogger(__name__).info("Re-queued %s stuck scan job(s) on startup", n)
+    start_queue_worker()
     yield
+    stop_queue_worker()
 
 
 def create_app() -> FastAPI:

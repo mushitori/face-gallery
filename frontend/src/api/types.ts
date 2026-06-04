@@ -2,6 +2,9 @@ export interface Library {
   id: number
   root_path: string
   last_scan_at: string | null
+  photo_count: number
+  person_count: number
+  cover_person_id: number | null
 }
 
 export interface Job {
@@ -11,6 +14,17 @@ export interface Job {
   status: string
   progress: number
   message: string | null
+  force: boolean
+  created_at: string | null
+  updated_at: string | null
+  library_root_path: string | null
+  queue_position: number | null
+}
+
+export interface JobsDashboard {
+  active: Job | null
+  queue: Job[]
+  history: Job[]
 }
 
 export interface Person {

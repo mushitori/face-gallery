@@ -6,21 +6,27 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from face_gallery.api.deps import get_db
+from face_gallery.api.library_mapping import row_to_library
+from face_gallery.api.queries import LIBRARY_SELECT
 from face_gallery.models.photo import LibraryCreate, LibraryOut
-from face_gallery.services.job_runner import start_scan_job_async
+from face_gallery.services.queue_worker import library_has_active_job, notify_worker
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/libraries", tags=["libraries"])
 
 
+def _fetch_library(db: Session, where: str, params: dict) -> LibraryOut | None:
+    row = db.execute(
+        text(f"{LIBRARY_SELECT} WHERE {where}"),
+        params,
+    ).fetchone()
+    return row_to_library(row) if row else None
+
+
 @router.get("", response_model=list[LibraryOut])
 def list_libraries(db: Session = Depends(get_db)) -> list[LibraryOut]:
-    rows = db.execute(
-        text("SELECT id, root_path, last_scan_at FROM libraries ORDER BY id")
-    ).fetchall()
-    return [
-        LibraryOut(id=r[0], root_path=r[1], last_scan_at=r[2]) for r in rows
-    ]
+    rows = db.execute(text(f"{LIBRARY_SELECT} ORDER BY l.id")).fetchall()
+    return [row_to_library(r) for r in rows]
 
 
 @router.post("", response_model=LibraryOut)
@@ -28,35 +34,27 @@ def create_library(body: LibraryCreate, db: Session = Depends(get_db)) -> Librar
     root = Path(body.root_path).resolve()
     if not root.is_dir():
         raise HTTPException(status_code=400, detail="root_path is not a directory")
-    existing = db.execute(
-        text("SELECT id, root_path, last_scan_at FROM libraries WHERE root_path = :p"),
-        {"p": str(root)},
-    ).fetchone()
+    existing = _fetch_library(db, "l.root_path = :p", {"p": str(root)})
     if existing:
-        out = LibraryOut(id=existing[0], root_path=existing[1], last_scan_at=existing[2])
         logger.info(
             "create_library: existing library id=%s path=%s",
-            out.id,
-            out.root_path,
+            existing.id,
+            existing.root_path,
         )
-        return out
+        return existing
     db.execute(
         text("INSERT INTO libraries (root_path) VALUES (:p)"),
         {"p": str(root)},
     )
     db.commit()
-    row = db.execute(
-        text("SELECT id, root_path, last_scan_at FROM libraries WHERE root_path = :p"),
-        {"p": str(root)},
-    ).fetchone()
-    assert row
-    out = LibraryOut(id=row[0], root_path=row[1], last_scan_at=row[2])
+    out = _fetch_library(db, "l.root_path = :p", {"p": str(root)})
+    assert out
     logger.info("create_library: inserted id=%s path=%s", out.id, out.root_path)
     return out
 
 
 @router.post("/{library_id}/scan")
-async def start_scan(
+def start_scan(
     library_id: int,
     force: bool = Query(
         default=False,
@@ -70,14 +68,19 @@ async def start_scan(
     ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Library not found")
+    if library_has_active_job(db, library_id):
+        raise HTTPException(
+            status_code=409,
+            detail="A scan is already queued or running for this library",
+        )
     insert = db.execute(
         text(
             """
-            INSERT INTO jobs (library_id, type, status, progress, message)
-            VALUES (:lid, 'scan', 'queued', 0, 'Queued')
+            INSERT INTO jobs (library_id, type, status, progress, message, force)
+            VALUES (:lid, 'scan', 'queued', 0, 'Queued', :force)
             """
         ),
-        {"lid": library_id},
+        {"lid": library_id, "force": 1 if force else 0},
     )
     job_id = int(insert.lastrowid or 0)
     db.commit()
@@ -95,5 +98,5 @@ async def start_scan(
             insert.lastrowid,
         )
         raise HTTPException(status_code=500, detail="Failed to create scan job")
-    await start_scan_job_async(job_id, library_id, row[0], force=force)
+    notify_worker()
     return {"job_id": job_id}

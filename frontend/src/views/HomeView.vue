@@ -1,27 +1,57 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AppShell from '../components/layout/AppShell.vue'
 import AddLibraryCard from '../components/library/AddLibraryCard.vue'
+import LibraryActionBar from '../components/library/LibraryActionBar.vue'
+import LibraryGrid from '../components/library/LibraryGrid.vue'
 import ScanProgressPanel from '../components/scan/ScanProgressPanel.vue'
+import { useApiHealth } from '../composables/useApi'
+import { useScanProgress } from '../composables/useScanProgress'
+import { ApiError } from '../api/client'
+import { useJobsStore } from '../stores/jobs'
 import { useLibraryStore } from '../stores/library'
 import { useScanStore } from '../stores/scan'
 
 const library = useLibraryStore()
 const scan = useScanStore()
+const jobs = useJobsStore()
 const router = useRouter()
+const { online } = useApiHealth()
+const { isActive } = useScanProgress()
 
-onMounted(() => void library.fetchLibraries())
+const selectedLib = computed(() => library.selected())
+const actionsDisabled = computed(
+  () => !online.value || selectedLib.value == null,
+)
+const scanBusy = computed(() => {
+  const id = library.selectedId
+  if (id == null) return false
+  const st = jobs.libraryJobState(id)
+  return st === 'queued' || st === 'running' || isActive.value
+})
+
+onMounted(async () => {
+  await Promise.all([library.fetchLibraries(), jobs.fetchDashboard()])
+})
 
 async function onAdd(path: string) {
   const lib = await library.addLibrary(path)
-  await scan.startScan(lib.id, false)
+  try {
+    await scan.startScan(lib.id, false)
+  } catch (e) {
+    if (!(e instanceof ApiError)) throw e
+  }
 }
 
 async function scanSelected(force = false) {
   const lib = library.selected()
   if (!lib) return
-  await scan.startScan(lib.id, force)
+  try {
+    await scan.startScan(lib.id, force)
+  } catch {
+    /* lastError set in store */
+  }
 }
 
 function openPersons() {
@@ -34,54 +64,92 @@ function openPersons() {
 
 <template>
   <AppShell>
-    <h1>Photo libraries</h1>
-    <AddLibraryCard @add="onAdd" />
-    <ScanProgressPanel />
+    <div class="home-layout">
+      <aside class="col-left">
+        <AddLibraryCard @add="onAdd" />
+        <ScanProgressPanel />
+        <p v-if="scan.lastError" class="error-text">{{ scan.lastError }}</p>
+        <p v-if="library.error" class="error-text">{{ library.error }}</p>
+      </aside>
 
-    <section v-if="library.libraries.length" class="libs">
-      <h2>Your libraries</h2>
-      <ul>
-        <li v-for="lib in library.libraries" :key="lib.id">
-          <label>
-            <input v-model="library.selectedId" type="radio" :value="lib.id" />
-            {{ lib.root_path }}
-          </label>
-        </li>
-      </ul>
-      <div class="actions">
-        <button type="button" class="btn primary" @click="scanSelected(false)">
-          Scan new/changed
-        </button>
-        <button type="button" class="btn" @click="scanSelected(true)">
-          Rescan all
-        </button>
-        <button type="button" class="btn" @click="openPersons">Browse people</button>
-      </div>
-    </section>
-    <p v-if="library.error" class="error">{{ library.error }}</p>
+      <section v-if="library.libraries.length" class="col-right glass-panel-strong">
+        <div class="libraries-head">
+          <h2 class="section-title">Your Libraries</h2>
+        </div>
+        <div class="libraries-body">
+          <LibraryGrid
+            :libraries="library.libraries"
+            :selected-id="library.selectedId"
+            @select="library.selectedId = $event"
+          />
+        </div>
+        <LibraryActionBar
+          :disabled="actionsDisabled"
+          :scan-busy="scanBusy"
+          @scan-new="scanSelected(false)"
+          @rescan-all="scanSelected(true)"
+          @browse-people="openPersons"
+        />
+      </section>
+
+      <section v-else class="col-right empty-panel glass-panel-strong">
+        <p class="empty-libs">Add a photo library to get started.</p>
+      </section>
+    </div>
   </AppShell>
 </template>
 
 <style scoped>
-h1 {
-  margin-bottom: 1rem;
+.home-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) 1fr;
+  gap: 1.5rem;
+  align-items: stretch;
 }
-.libs {
-  margin-top: 2rem;
-}
-.libs ul {
-  list-style: none;
-  padding: 0;
-}
-.libs li {
-  padding: 0.35rem 0;
-}
-.actions {
+.col-left {
   display: flex;
-  gap: 0.75rem;
-  margin-top: 1rem;
+  flex-direction: column;
+  gap: 1rem;
 }
-.error {
-  color: #f07178;
+.col-right {
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+  overflow: hidden;
+}
+.libraries-head {
+  padding: 1.35rem 1.5rem 0;
+}
+.section-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+.libraries-body {
+  flex: 1;
+  padding: 1rem 1.5rem 1.25rem;
+  overflow-y: auto;
+}
+.empty-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+}
+.empty-libs {
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin: 0;
+}
+.col-left .error-text {
+  padding: 0 0.25rem;
+}
+@media (max-width: 960px) {
+  .home-layout {
+    grid-template-columns: 1fr;
+  }
+  .col-right {
+    min-height: auto;
+  }
 }
 </style>

@@ -42,8 +42,18 @@ def init_db() -> None:
             s = stmt.strip()
             if s:
                 conn.execute(text(s))
+        _apply_migrations(conn)
 
     _SessionLocal = sessionmaker(bind=_engine, autoflush=False, autocommit=False)
+
+
+def _apply_migrations(conn) -> None:  # noqa: ANN001
+    try:
+        conn.execute(
+            text("ALTER TABLE jobs ADD COLUMN force INTEGER NOT NULL DEFAULT 0")
+        )
+    except Exception:
+        pass
 
 
 def get_engine() -> Engine:

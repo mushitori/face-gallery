@@ -89,11 +89,28 @@ pnpm tauri:build
 
 Output under `src-tauri/target/release/bundle/`.
 
+## Scan queue
+
+- One global worker runs scans **FIFO** (`queued` → `indexing` → `clustering` → `done`/`failed`).
+- `POST /libraries/{id}/scan` only enqueues; returns **409** if that library already has a job in `queued`, `indexing`, or `clustering`.
+- On API startup, jobs stuck in `indexing`/`clustering` are reset to `queued` and picked up again.
+- UI: **Home** (libraries + scan actions), **Scans** (`/scans`) for active job, pending queue, and history.
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/jobs/dashboard` | Active + queue + history |
+| GET | `/jobs?bucket=active\|queue\|history` | Job lists |
+| GET | `/jobs/{id}` | Single job (+ queue position if queued) |
+| POST | `/libraries/{id}/scan?force=` | Enqueue scan |
+
 ## Smoke test checklist
 
 - [ ] `uv run pytest` in `backend/` passes
 - [ ] `GET /health` returns `ok`
 - [ ] Add library folder via UI or `POST /libraries`
+- [ ] Enqueue two scans (different libraries): one active, one pending on `/scans`
+- [ ] Second `POST /scan` on same library while first is queued → 409
+- [ ] Restart API during scan: job returns to queue and completes
 - [ ] Scan job completes; `GET /persons?library_id=` returns thumbnails
 - [ ] Click person; photo grid loads without rescan
 - [ ] Quit app; no zombie `python`/`api.exe` (use `POST /shutdown` in prod)

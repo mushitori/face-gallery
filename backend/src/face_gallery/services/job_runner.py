@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import asyncio
-import threading
 import time
 from pathlib import Path
 
@@ -12,10 +10,6 @@ from face_gallery.db.connection import get_engine, get_session
 from face_gallery.services.clusterer import cluster_library_faces
 from face_gallery.services.indexer import index_library
 from face_gallery.ml.insightface_app import warmup
-
-_active_jobs: dict[int, threading.Thread] = {}
-_active_libraries: set[int] = set()
-_lock = threading.Lock()
 
 _UPDATE_SQL = text(
     """
@@ -76,7 +70,7 @@ def _run_scan(job_id: int, library_id: int, root_path: str, *, force: bool = Fal
                 _update_job(job_id, "indexing", 0.04, "Clearing old person clusters…")
                 _clear_library_clusters(session, library_id)
             _update_job(job_id, "indexing", 0.05, "Scanning images…")
-            total, faces_new, skipped, indexed = index_library(
+            total, _faces_new, skipped, indexed = index_library(
                 session,
                 library_id,
                 Path(root_path),
@@ -114,35 +108,10 @@ def _run_scan(job_id: int, library_id: int, root_path: str, *, force: bool = Fal
             _update_job(job_id, "failed", 0.0, err[:500])
         except Exception:
             pass
-    finally:
-        with _lock:
-            _active_jobs.pop(job_id, None)
-            _active_libraries.discard(library_id)
 
 
-def start_scan_job(
+def run_queued_job(
     job_id: int, library_id: int, root_path: str, *, force: bool = False
 ) -> None:
-    with _lock:
-        if library_id in _active_libraries:
-            _update_job(job_id, "failed", 0.0, "A scan is already running for this library.")
-            _active_jobs.pop(job_id, None)
-            return
-        if job_id in _active_jobs:
-            return
-        _active_libraries.add(library_id)
-        t = threading.Thread(
-            target=_run_scan,
-            args=(job_id, library_id, root_path),
-            kwargs={"force": force},
-            daemon=True,
-            name=f"scan-job-{job_id}",
-        )
-        _active_jobs[job_id] = t
-        t.start()
-
-
-async def start_scan_job_async(
-    job_id: int, library_id: int, root_path: str, *, force: bool = False
-) -> None:
-    await asyncio.to_thread(start_scan_job, job_id, library_id, root_path, force=force)
+    """Run one scan job synchronously (queue worker only)."""
+    _run_scan(job_id, library_id, root_path, force=force)

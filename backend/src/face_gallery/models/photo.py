@@ -9,6 +9,9 @@ class LibraryOut(BaseModel):
     id: int
     root_path: str
     last_scan_at: str | None
+    photo_count: int = 0
+    person_count: int = 0
+    cover_person_id: int | None = None
 
 
 class PhotoOut(BaseModel):
