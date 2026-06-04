@@ -1,0 +1,15 @@
+{
+  "name": "face-gallery",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev:api": "powershell -ExecutionPolicy Bypass -File backend/scripts/dev.ps1",
+    "dev:ui": "pnpm --dir frontend dev",
+    "build:ui": "pnpm --dir frontend build",
+    "tauri:dev": "pnpm exec tauri dev",
+    "tauri:build": "pnpm exec tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.2"
+  }
+}

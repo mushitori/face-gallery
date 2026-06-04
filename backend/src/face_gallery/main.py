@@ -1,0 +1,75 @@
+import os
+import sys
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from face_gallery.api.routes import health, jobs, libraries, persons, thumbs
+from face_gallery.config import get_settings
+from face_gallery.db.connection import init_db
+
+_shutdown_requested = False
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    settings = get_settings()
+    settings.resolve_paths()
+    init_db()
+    yield
+
+
+def create_app() -> FastAPI:
+    settings = get_settings()
+    app = FastAPI(title="Face Gallery API", version="0.1.0", lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.include_router(health.router)
+    app.include_router(libraries.router)
+    app.include_router(jobs.router)
+    app.include_router(persons.router)
+    app.include_router(thumbs.router)
+
+    @app.post("/shutdown")
+    def shutdown() -> dict[str, str]:
+        global _shutdown_requested
+        _shutdown_requested = True
+
+        def _exit() -> None:
+            os._exit(0)
+
+        import threading
+
+        threading.Timer(0.3, _exit).start()
+        return {"status": "shutting_down"}
+
+    return app
+
+
+app = create_app()
+
+
+def main() -> None:
+    import uvicorn
+
+    settings = get_settings()
+    port = settings.api_port
+    if "--port" in sys.argv:
+        i = sys.argv.index("--port")
+        port = int(sys.argv[i + 1])
+    uvicorn.run(
+        "face_gallery.main:app",
+        host=settings.api_host,
+        port=port,
+        reload=False,
+    )
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,37 @@
+[project]
+name = "face-gallery"
+version = "0.1.0"
+description = "Offline face photo organizer API"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "aiosqlite>=0.22.1",
+    "fastapi>=0.136.3",
+    "insightface>=1.0.1",
+    "numpy>=2.4.6",
+    "onnxruntime>=1.26.0",
+    "opencv-python-headless>=4.13.0.92",
+    "pillow>=12.2.0",
+    "pydantic-settings>=2.14.1",
+    "scikit-learn>=1.9.0",
+    "sqlalchemy>=2.0.50",
+    "uvicorn[standard]>=0.49.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/face_gallery"]
+
+[project.scripts]
+face-gallery-api = "face_gallery.main:main"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pyinstaller>=6.20.0",
+    "pytest>=9.0.3",
+    "ruff>=0.15.15",
+]
