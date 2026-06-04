@@ -58,6 +58,10 @@ def detect_faces(image_path: Path) -> tuple[list[DetectedFace], int, int]:
         return [], 0, 0
     h0, w0 = img.shape[:2]
     img = _resize_long_edge(img, settings.scan_resize_long_edge)
+    rh, rw = img.shape[:2]
+    # Detection runs on the resized image; map bbox back to original-image coords
+    # so it matches the stored width/height and the full-res thumbnail crop.
+    inv_scale = w0 / rw if rw else 1.0
     faces = get_face_app().get(img)
     out: list[DetectedFace] = []
     for f in faces:
@@ -68,6 +72,7 @@ def detect_faces(image_path: Path) -> tuple[list[DetectedFace], int, int]:
         if bbox.size < 4:
             continue
         x1, y1, x2, y2 = (float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
+        x1, y1, x2, y2 = (x1 * inv_scale, y1 * inv_scale, x2 * inv_scale, y2 * inv_scale)
         out.append(
             DetectedFace(
                 bbox_x=x1,

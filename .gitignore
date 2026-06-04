@@ -3,6 +3,8 @@ frontend/dist/
 .DS_Store
 *.log
 
+*/__pycache__
+
 backend/.venv/
 backend/dist/
 backend/build/

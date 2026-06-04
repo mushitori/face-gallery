@@ -20,7 +20,8 @@ class Settings(BaseSettings):
     scan_resize_long_edge: int = 1024
     scan_batch_size: int = 16
     dbscan_eps: float = 0.45
-    dbscan_min_samples: int = 2
+    # 1 = keep every face as at least its own person (no one-off faces dropped as noise)
+    dbscan_min_samples: int = 1
     embedding_version: str = "buffalo_l_v1"
 
     cors_origins: list[str] = [
