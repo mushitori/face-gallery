@@ -6,6 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from face_gallery.config import get_settings
+from face_gallery.db.connection import commit_session
 from face_gallery.services.thumbnail import blob_to_embedding
 
 
@@ -27,12 +28,13 @@ def cluster_library_faces(session: Session, library_id: int) -> int:
             text("DELETE FROM persons WHERE library_id = :lid"),
             {"lid": library_id},
         )
-        session.commit()
+        commit_session(session)
         return 0
 
     ids = [r[0] for r in rows]
     embs = np.stack([blob_to_embedding(r[1]) for r in rows])
     scores = np.array([r[2] for r in rows], dtype=np.float32)
+    commit_session(session)
 
     clustering = DBSCAN(
         eps=settings.dbscan_eps,
@@ -53,7 +55,7 @@ def cluster_library_faces(session: Session, library_id: int) -> int:
         ),
         {"lid": library_id},
     )
-    session.commit()
+    commit_session(session)
 
     unique_labels = sorted({int(l) for l in labels if int(l) >= 0})
     person_count = 0
@@ -99,6 +101,7 @@ def cluster_library_faces(session: Session, library_id: int) -> int:
             ),
             {"pid": person_id},
         )
+        commit_session(session)
 
     session.execute(
         text(
@@ -112,5 +115,5 @@ def cluster_library_faces(session: Session, library_id: int) -> int:
         ),
         {"lid": library_id},
     )
-    session.commit()
+    commit_session(session)
     return person_count

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import time
 from pathlib import Path
 
 from sqlalchemy import text
-from sqlalchemy.exc import OperationalError
 
-from face_gallery.db.connection import get_engine, get_session
+from face_gallery.db.connection import commit_session, get_engine, get_session
+from face_gallery.db.retry import run_with_retry
 from face_gallery.services.clusterer import cluster_library_faces
 from face_gallery.services.indexer import index_library
 from face_gallery.ml.insightface_app import warmup
@@ -23,18 +22,15 @@ def _update_job(job_id: int, status: str, progress: float, message: str | None) 
     """Separate connection so scan session does not block progress writes."""
     engine = get_engine()
     msg = message[:500] if message else message
-    for attempt in range(8):
-        try:
-            with engine.begin() as conn:
-                conn.execute(
-                    _UPDATE_SQL,
-                    {"st": status, "pr": progress, "msg": msg, "jid": job_id},
-                )
-            return
-        except OperationalError:
-            if attempt == 7:
-                raise
-            time.sleep(0.05 * (attempt + 1))
+
+    def _write() -> None:
+        with engine.begin() as conn:
+            conn.execute(
+                _UPDATE_SQL,
+                {"st": status, "pr": progress, "msg": msg, "jid": job_id},
+            )
+
+    run_with_retry(_write)
 
 
 def _clear_library_clusters(session, library_id: int) -> None:
@@ -53,7 +49,7 @@ def _clear_library_clusters(session, library_id: int) -> None:
         ),
         {"lid": library_id},
     )
-    session.commit()
+    commit_session(session)
 
 
 def _run_scan(job_id: int, library_id: int, root_path: str, *, force: bool = False) -> None:

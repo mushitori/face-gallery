@@ -18,7 +18,8 @@ def _configure_sqlite(dbapi_conn) -> None:  # noqa: ANN001
     cursor = dbapi_conn.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.execute("PRAGMA journal_mode=WAL")
-    cursor.execute("PRAGMA busy_timeout=30000")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA busy_timeout=60000")
     cursor.close()
 
 
@@ -68,3 +69,12 @@ def get_session() -> Session:
         init_db()
     assert _SessionLocal is not None
     return _SessionLocal()
+
+
+def commit_session(session: Session) -> None:
+    from face_gallery.db.retry import run_with_retry
+
+    def _commit() -> None:
+        session.commit()
+
+    run_with_retry(_commit)

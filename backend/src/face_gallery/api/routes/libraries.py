@@ -6,6 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from face_gallery.api.deps import get_db
+from face_gallery.db.connection import commit_session
 from face_gallery.api.library_mapping import row_to_library
 from face_gallery.api.queries import LIBRARY_SELECT
 from face_gallery.models.photo import LibraryCreate, LibraryOut
@@ -46,7 +47,7 @@ def create_library(body: LibraryCreate, db: Session = Depends(get_db)) -> Librar
         text("INSERT INTO libraries (root_path) VALUES (:p)"),
         {"p": str(root)},
     )
-    db.commit()
+    commit_session(db)
     out = _fetch_library(db, "l.root_path = :p", {"p": str(root)})
     assert out
     logger.info("create_library: inserted id=%s path=%s", out.id, out.root_path)
@@ -83,7 +84,7 @@ def start_scan(
         {"lid": library_id, "force": 1 if force else 0},
     )
     job_id = int(insert.lastrowid or 0)
-    db.commit()
+    commit_session(db)
     logger.info(
         "start_scan: library_id=%s job_id=%s force=%s root_path=%s",
         library_id,

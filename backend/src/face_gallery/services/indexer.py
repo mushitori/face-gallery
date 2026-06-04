@@ -7,6 +7,7 @@ from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from face_gallery.db.connection import commit_session
 from face_gallery.services.embedder import detect_faces
 from face_gallery.services.thumbnail import embedding_to_blob, face_thumbnail_bytes
 
@@ -44,6 +45,38 @@ def _should_report_progress(
     return (time.monotonic() - last_ts) >= PROGRESS_INTERVAL_SEC
 
 
+def _upsert_photo_row(
+    session: Session,
+    library_id: int,
+    rel: str,
+    stat,
+    row,
+) -> int:
+    if row:
+        photo_id = row[0]
+        session.execute(text("DELETE FROM faces WHERE photo_id = :pid"), {"pid": photo_id})
+        session.execute(
+            text(
+                """
+                UPDATE photos SET mtime = :m, size = :s, processed_at = datetime('now')
+                WHERE id = :id
+                """
+            ),
+            {"m": stat.st_mtime, "s": stat.st_size, "id": photo_id},
+        )
+        return int(photo_id)
+    session.execute(
+        text(
+            """
+            INSERT INTO photos (library_id, path, mtime, size)
+            VALUES (:lid, :path, :m, :s)
+            """
+        ),
+        {"lid": library_id, "path": rel, "m": stat.st_mtime, "s": stat.st_size},
+    )
+    return int(session.execute(text("SELECT last_insert_rowid()")).scalar_one())
+
+
 def index_library(
     session: Session,
     library_id: int,
@@ -74,7 +107,6 @@ def index_library(
             {"lid": library_id, "path": rel},
         ).fetchone()
 
-        # Skip unchanged files only when we already indexed faces (failed runs leave face_count=0).
         if (
             not force
             and row
@@ -82,7 +114,7 @@ def index_library(
             and row[2] == stat.st_size
             and int(row[3] or 0) > 0
         ):
-            session.commit()
+            commit_session(session)
             if on_progress and total and _should_report_progress(
                 idx, total, last_progress_ts
             ):
@@ -91,29 +123,8 @@ def index_library(
             files_skipped += 1
             continue
 
-        if row:
-            photo_id = row[0]
-            session.execute(text("DELETE FROM faces WHERE photo_id = :pid"), {"pid": photo_id})
-            session.execute(
-                text(
-                    """
-                    UPDATE photos SET mtime = :m, size = :s, processed_at = datetime('now')
-                    WHERE id = :id
-                    """
-                ),
-                {"m": stat.st_mtime, "s": stat.st_size, "id": photo_id},
-            )
-        else:
-            session.execute(
-                text(
-                    """
-                    INSERT INTO photos (library_id, path, mtime, size)
-                    VALUES (:lid, :path, :m, :s)
-                    """
-                ),
-                {"lid": library_id, "path": rel, "m": stat.st_mtime, "s": stat.st_size},
-            )
-            photo_id = session.execute(text("SELECT last_insert_rowid()")).scalar_one()
+        photo_id = _upsert_photo_row(session, library_id, rel, stat, row)
+        commit_session(session)
 
         try:
             faces, w, h = detect_faces(file_path)
@@ -124,7 +135,7 @@ def index_library(
                 ),
                 {"id": photo_id},
             )
-            session.commit()
+            commit_session(session)
             if on_progress and total:
                 on_progress((idx + 1) / total * 0.85, f"Error {rel}: {exc}")
                 last_progress_ts = time.monotonic()
@@ -166,7 +177,7 @@ def index_library(
             ),
             {"fc": len(faces), "w": w, "h": h, "id": photo_id},
         )
-        session.commit()
+        commit_session(session)
         files_indexed += 1
 
         if on_progress and total and _should_report_progress(
@@ -179,5 +190,5 @@ def index_library(
         text("UPDATE libraries SET last_scan_at = datetime('now') WHERE id = :lid"),
         {"lid": library_id},
     )
-    session.commit()
+    commit_session(session)
     return total, processed_faces, files_skipped, files_indexed
