@@ -2,56 +2,62 @@
 import type { Job } from '../../api/types'
 import {
   formatDurationMs,
+  formatApiDateTime,
   jobElapsedMs,
-  libraryDisplayName,
-  parseJobSummary,
+  libraryScanLabel,
+  parseJobStats,
 } from '../../utils/format'
 
 defineProps<{
   jobs: Job[]
 }>()
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '—'
-  const normalized = iso.includes('T') ? iso : iso.replace(' ', 'T')
-  const d = new Date(normalized.endsWith('Z') ? normalized : `${normalized}Z`)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
-}
 </script>
 
 <template>
   <section class="section">
     <h2>Scan history</h2>
-    <p v-if="!jobs.length" class="empty">No completed scans yet.</p>
-    <div v-else class="table-wrap glass-panel">
+    <p v-if="!jobs.length" class="empty glass-panel">No completed scans yet.</p>
+    <div v-else class="table-wrap glass-panel-strong">
       <table>
         <thead>
           <tr>
-            <th>Date & time</th>
+            <th>Date &amp; time</th>
             <th>Library</th>
             <th>Status</th>
+            <th>Total faces found</th>
+            <th>New persons created</th>
             <th>Duration</th>
-            <th>Summary</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="job in jobs" :key="job.id">
-            <td>{{ formatDate(job.created_at) }}</td>
-            <td>{{ libraryDisplayName(job.library_root_path ?? '') }}</td>
+            <td class="date">{{ formatApiDateTime(job.created_at) }}</td>
+            <td>{{ libraryScanLabel(job.library_root_path, job.library_id) }}</td>
             <td>
-              <span class="status" :class="job.status">
-                {{ job.status === 'done' ? '✓ Completed' : '✗ Failed' }}
+              <span v-if="job.status === 'done'" class="status done">
+                <span class="status-dot" aria-hidden="true" />
+                Completed
+              </span>
+              <span v-else class="status failed">
+                <span class="status-dot failed-dot" aria-hidden="true" />
+                Failed
               </span>
             </td>
-            <td>{{ formatDurationMs(jobElapsedMs(job)) }}</td>
-            <td class="summary">{{ parseJobSummary(job.message) }}</td>
+            <td class="num">
+              {{
+                parseJobStats(job.message).faces != null
+                  ? `${parseJobStats(job.message).faces} faces`
+                  : '—'
+              }}
+            </td>
+            <td class="num">
+              {{
+                parseJobStats(job.message).persons != null
+                  ? `${parseJobStats(job.message).persons} new`
+                  : '—'
+              }}
+            </td>
+            <td class="duration">{{ formatDurationMs(jobElapsedMs(job)) }}</td>
           </tr>
         </tbody>
       </table>
@@ -61,29 +67,62 @@ function formatDate(iso: string | null): string {
 
 <style scoped>
 .section h2 {
-  margin-bottom: 0.75rem;
+  margin: 0 0 1rem;
+  font-size: 1.15rem;
+  font-weight: 600;
 }
 .empty {
+  padding: 2rem;
+  text-align: center;
   color: var(--muted);
   font-size: 0.9rem;
+  border-radius: 16px;
 }
 .table-wrap {
   overflow-x: auto;
-  padding: 0;
+  border-radius: 18px;
 }
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
 }
-th,
-td {
-  padding: 0.75rem 1rem;
-  text-align: left;
-  border-bottom: 1px solid var(--glass-border);
+thead {
+  background: rgba(0, 0, 0, 0.2);
 }
 th {
+  padding: 0.85rem 1.15rem;
+  text-align: left;
+  font-weight: 500;
   color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: capitalize;
+  border-bottom: 1px solid var(--glass-border);
+}
+td {
+  padding: 0.9rem 1.15rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-soft);
+  vertical-align: middle;
+}
+tbody tr:last-child td {
+  border-bottom: none;
+}
+tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+.date,
+.duration {
+  white-space: nowrap;
+}
+.num {
+  color: var(--text);
+  font-weight: 500;
+}
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   font-weight: 500;
 }
 .status.done {
@@ -92,9 +131,16 @@ th {
 .status.failed {
   color: var(--danger);
 }
-.summary {
-  max-width: 280px;
-  word-break: break-word;
-  color: var(--muted);
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--status-online);
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+  flex-shrink: 0;
+}
+.status-dot.failed-dot {
+  background: var(--danger);
+  box-shadow: none;
 }
 </style>
