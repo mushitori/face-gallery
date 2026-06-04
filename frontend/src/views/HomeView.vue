@@ -86,8 +86,7 @@ function openPersons() {
         <LibraryActionBar
           :disabled="actionsDisabled"
           :scan-busy="scanBusy"
-          @scan-new="scanSelected(false)"
-          @rescan-all="scanSelected(true)"
+          @scan-new="scanSelected(true)"
           @browse-people="openPersons"
         />
       </section>

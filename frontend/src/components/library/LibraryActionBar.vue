@@ -6,7 +6,6 @@ defineProps<{
 
 const emit = defineEmits<{
   scanNew: []
-  rescanAll: []
   browsePeople: []
 }>()
 </script>
@@ -19,11 +18,11 @@ const emit = defineEmits<{
       :disabled="disabled || scanBusy"
       @click="emit('scanNew')"
     >
-      Scan new/changed
+      Rescan Selected
     </button>
-    <button type="button" class="btn" :disabled="disabled || scanBusy" @click="emit('rescanAll')">
+    <!-- <button type="button" class="btn" :disabled="disabled || scanBusy" @click="emit('rescanAll')">
       Rescan all
-    </button>
+    </button> -->
     <button type="button" class="btn" :disabled="disabled" @click="emit('browsePeople')">
       Browse people
     </button>
