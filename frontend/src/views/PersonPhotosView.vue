@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import AppShell from '../components/layout/AppShell.vue'
 import PhotoVirtualGrid from '../components/photos/PhotoVirtualGrid.vue'
@@ -9,6 +9,17 @@ import type { Person } from '../api/types'
 const props = defineProps<{ personId: string }>()
 const person = ref<Person | null>(null)
 const rootPath = ref<string | undefined>()
+const photoTotal = ref(0)
+
+const peopleLink = computed(() =>
+  person.value
+    ? { name: 'persons' as const, params: { libraryId: String(person.value.library_id) } }
+    : null,
+)
+
+const title = computed(
+  () => person.value?.display_name ?? `Person ${props.personId}`,
+)
 
 onMounted(async () => {
   const id = Number(props.personId)
@@ -23,23 +34,52 @@ onMounted(async () => {
 
 <template>
   <AppShell>
-    <RouterLink to="/" class="back">← Back</RouterLink>
-    <h1>{{ person?.display_name ?? `Person ${personId}` }}</h1>
+    <RouterLink v-if="peopleLink" :to="peopleLink" class="back">
+      ← Back to People
+    </RouterLink>
+    <span v-else class="back muted">← Back to People</span>
+
+    <header class="page-header">
+      <h1>{{ title }}</h1>
+      <p v-if="photoTotal > 0" class="subtitle">{{ photoTotal }} photos</p>
+    </header>
+
     <PhotoVirtualGrid
       v-if="!Number.isNaN(Number(personId))"
       :person-id="Number(personId)"
       :root-path="rootPath"
+      @total-change="photoTotal = $event"
     />
   </AppShell>
 </template>
 
 <style scoped>
 .back {
-  color: var(--accent);
+  display: inline-block;
+  color: var(--accent-teal);
   text-decoration: none;
   font-size: 0.9rem;
+  margin-bottom: 1rem;
 }
-h1 {
-  margin: 0.5rem 0 1rem;
+.back:hover {
+  color: var(--accent-cyan);
+}
+.back.muted {
+  color: var(--muted);
+  pointer-events: none;
+}
+.page-header {
+  margin-bottom: 1.25rem;
+}
+.page-header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
 }
 </style>

@@ -86,4 +86,6 @@ export const api = {
     ),
   personThumbUrl: (personId: number) => `${base}/thumbs/person/${personId}`,
   photoThumbUrl: (photoId: number) => `${base}/thumbs/photo/${photoId}`,
+  photoOriginalUrl: (photoId: number) =>
+    `${base}/thumbs/photo/${photoId}/original`,
 }

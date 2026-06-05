@@ -55,6 +55,14 @@ async function scanSelected(force = false) {
   }
 }
 
+function onLibrarySelect(id: number) {
+  if (library.selectedId === id) {
+    router.push({ name: 'persons', params: { libraryId: String(id) } })
+  } else {
+    library.selectedId = id
+  }
+}
+
 function openPersons() {
   const id = library.selectedId
   if (id != null) {
@@ -87,7 +95,7 @@ function viewScans() {
           <LibraryGrid
             :libraries="library.libraries"
             :selected-id="library.selectedId"
-            @select="library.selectedId = $event"
+            @select="onLibrarySelect"
           />
         </div>
         <LibraryActionBar

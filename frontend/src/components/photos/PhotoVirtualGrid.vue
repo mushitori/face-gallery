@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import type { Photo } from '../../api/types'
 import { api } from '../../api/client'
 import PhotoLightbox from './PhotoLightbox.vue'
@@ -9,12 +9,24 @@ const props = defineProps<{
   rootPath?: string
 }>()
 
+const emit = defineEmits<{
+  totalChange: [n: number]
+}>()
+
 const photos = ref<Photo[]>([])
 const loading = ref(false)
 const page = ref(1)
 const total = ref(0)
 const pageSize = 60
-const selected = ref<Photo | null>(null)
+const selectedIndex = ref<number | null>(null)
+
+const selectedPhoto = computed(() =>
+  selectedIndex.value != null ? (photos.value[selectedIndex.value] ?? null) : null,
+)
+
+function wrapIndex(index: number, count: number): number {
+  return ((index % count) + count) % count
+}
 
 async function loadPage(p: number) {
   loading.value = true
@@ -22,11 +34,13 @@ async function loadPage(p: number) {
     const res = await api.personPhotos(props.personId, p, pageSize)
     if (p === 1) {
       photos.value = res.items
+      selectedIndex.value = null
     } else {
       photos.value = [...photos.value, ...res.items]
     }
     total.value = res.total
     page.value = p
+    emit('totalChange', res.total)
   } finally {
     loading.value = false
   }
@@ -35,6 +49,33 @@ async function loadPage(p: number) {
 async function loadMore() {
   if (photos.value.length >= total.value || loading.value) return
   await loadPage(page.value + 1)
+}
+
+async function ensurePhotoLoaded(targetIndex: number): Promise<void> {
+  while (photos.value.length <= targetIndex && photos.value.length < total.value) {
+    await loadPage(page.value + 1)
+  }
+}
+
+async function goToIndex(targetIndex: number): Promise<void> {
+  if (total.value === 0) return
+  const wrapped = wrapIndex(targetIndex, total.value)
+  await ensurePhotoLoaded(wrapped)
+  selectedIndex.value = wrapped
+}
+
+async function goPrev() {
+  if (selectedIndex.value == null) return
+  await goToIndex(selectedIndex.value - 1)
+}
+
+async function goNext() {
+  if (selectedIndex.value == null) return
+  await goToIndex(selectedIndex.value + 1)
+}
+
+function openAt(index: number) {
+  selectedIndex.value = index
 }
 
 onMounted(() => void loadPage(1))
@@ -46,15 +87,14 @@ watch(
 
 <template>
   <div class="wrap">
-    <p class="meta">{{ total }} photos</p>
     <div v-if="loading && !photos.length" class="loading">Loading photos…</div>
     <div v-else class="grid">
       <button
-        v-for="photo in photos"
+        v-for="(photo, index) in photos"
         :key="photo.id"
         type="button"
         class="cell"
-        @click="selected = photo"
+        @click="openAt(index)"
       >
         <img :src="api.photoThumbUrl(photo.id)" :alt="photo.path" loading="lazy" />
       </button>
@@ -68,7 +108,16 @@ watch(
     >
       {{ loading ? 'Loading…' : 'Load more' }}
     </button>
-    <PhotoLightbox :photo="selected" :root-path="rootPath" @close="selected = null" />
+    <PhotoLightbox
+      v-if="selectedIndex != null && selectedPhoto"
+      :photo="selectedPhoto"
+      :index="selectedIndex"
+      :total="total"
+      :root-path="rootPath"
+      @close="selectedIndex = null"
+      @prev="goPrev"
+      @next="goNext"
+    />
   </div>
 </template>
 
@@ -78,22 +127,23 @@ watch(
   flex-direction: column;
   gap: 0.75rem;
 }
-.meta {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 0.5rem;
+  gap: 0.65rem;
 }
 .cell {
   border: none;
   padding: 0;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
   background: var(--bg);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.cell:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 .cell img {
   width: 100%;

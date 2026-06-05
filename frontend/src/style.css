@@ -8,6 +8,7 @@
   --surface: #12151f;
   --glass-bg: rgba(18, 22, 38, 0.55);
   --glass-bg-strong: rgba(22, 28, 48, 0.72);
+  --glass-bg-strong-heavy: rgba(22, 28, 48, 0.95);
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-highlight: rgba(255, 255, 255, 0.04);
   --border: rgba(90, 100, 140, 0.35);
