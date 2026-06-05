@@ -4,10 +4,9 @@ frontend/dist/
 Thumbs.db
 *.log
 
-*/__pycache__
+__pycache__/
 *.py[cod]
-*.pyo
-.pytest_cache/
+*.pyo.pytest_cache/
 .ruff_cache/
 
 backend/.venv/
