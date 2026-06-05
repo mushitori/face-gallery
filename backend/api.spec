@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('M:\\projects\\face-gallery\\backend\\src\\face_gallery\\db\\schema.sql', 'face_gallery/db')]
+datas = [('M:\\projects\\face-gallery\\backend\\src\\face_gallery\\db\\schema.sql', 'face_gallery/db'), ('M:\\projects\\face-gallery\\backend\\.venv\\Lib\\site-packages\\insightface\\data\\objects', 'objects')]
 binaries = []
 hiddenimports = ['face_gallery', 'face_gallery.main', 'face_gallery.config', 'face_gallery.ml.model_setup', 'face_gallery.ml.insightface_app', 'uvicorn.logging', 'uvicorn.loops', 'uvicorn.loops.auto', 'uvicorn.protocols', 'uvicorn.protocols.http', 'uvicorn.protocols.http.auto', 'uvicorn.protocols.websockets', 'uvicorn.protocols.websockets.auto', 'uvicorn.lifespan', 'uvicorn.lifespan.on']
 tmp_ret = collect_all('insightface')

@@ -13,6 +13,9 @@ backend/.venv/
 backend/dist/
 backend/build/
 backend/**/*.db
+backend/**/*.db-wal
+backend/**/*.db-shm
+backend/test-prod-debug*.db*
 backend/.pytest_cache/
 backend/.ruff_cache/
 backend/models/**/*.onnx

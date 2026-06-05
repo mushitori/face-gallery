@@ -10,11 +10,15 @@ uv sync
 
 $Entry = Join-Path $Root "src\face_gallery\main.py"
 $Schema = Join-Path $Root "src\face_gallery\db\schema.sql"
+$InsightfaceObjects = Join-Path $Root ".venv\Lib\site-packages\insightface\data\objects"
 $BuildDir = Join-Path $Root "build\pyinstaller"
 $DistDir = Join-Path $Root "dist"
 
 if (-not (Test-Path $Schema)) {
   throw "Database schema not found: $Schema"
+}
+if (-not (Test-Path $InsightfaceObjects)) {
+  throw "InsightFace data not found: $InsightfaceObjects (run uv sync first)"
 }
 
 # Tauri externalBin expects a single executable per target triple (--onefile).
@@ -28,6 +32,7 @@ uv run pyinstaller `
   --workpath $BuildDir `
   --paths (Join-Path $Root "src") `
   --add-data "${Schema};face_gallery/db" `
+  --add-data "${InsightfaceObjects};objects" `
   --hidden-import=face_gallery `
   --hidden-import=face_gallery.main `
   --hidden-import=face_gallery.config `

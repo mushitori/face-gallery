@@ -137,6 +137,9 @@ def index_library(
         try:
             faces, w, h = detect_faces(file_path)
         except Exception as exc:  # noqa: BLE001
+            import logging
+
+            logging.getLogger(__name__).exception("detect_faces failed for %s", file_path)
             session.execute(
                 text(
                     "UPDATE photos SET face_count = 0, width = 0, height = 0 WHERE id = :id"
