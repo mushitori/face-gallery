@@ -8,6 +8,20 @@ import type {
 
 const base = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:28765'
 
+const HEALTH_TIMEOUT_MS = 5000
+
+/** Lightweight health ping for startup / reconnect polling. */
+export async function pingHealth(timeoutMs = HEALTH_TIMEOUT_MS): Promise<boolean> {
+  try {
+    const res = await fetch(`${base}/health`, {
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 export class ApiError extends Error {
   status: number
   constructor(status: number, message: string) {

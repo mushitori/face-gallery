@@ -1,23 +1,9 @@
-import { onMounted, ref } from 'vue'
-import { api } from '../api/client'
+import { storeToRefs } from 'pinia'
+import { useApiHealthStore } from '../stores/apiHealth'
 
+/** Shared API health state (Pinia). Call init() once from App.vue. */
 export function useApiHealth() {
-  const online = ref(false)
-  const checking = ref(true)
-
-  async function check() {
-    checking.value = true
-    try {
-      await api.health()
-      online.value = true
-    } catch {
-      online.value = false
-    } finally {
-      checking.value = false
-    }
-  }
-
-  onMounted(() => void check())
-
-  return { online, checking, check }
+  const store = useApiHealthStore()
+  const { online, checking } = storeToRefs(store)
+  return { online, checking, check: store.check }
 }

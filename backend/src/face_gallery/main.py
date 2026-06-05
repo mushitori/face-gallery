@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from face_gallery.api.routes import health, jobs, libraries, persons, thumbs
 from face_gallery.config import get_settings
 from face_gallery.db.connection import init_db
+from face_gallery.ml.model_setup import ensure_models
 from face_gallery.services.queue_worker import (
     reset_stuck_jobs_on_startup,
     start_queue_worker,
@@ -27,6 +28,7 @@ async def lifespan(_app: FastAPI):
     logging.getLogger("face_gallery").setLevel(logging.INFO)
     settings = get_settings()
     settings.resolve_paths()
+    ensure_models()
     init_db()
     n = reset_stuck_jobs_on_startup()
     if n:
@@ -71,8 +73,36 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
+def _run_test_detect(image_arg: str) -> int:
+    from pathlib import Path
+
+    from face_gallery.ml.model_setup import ensure_models
+    from face_gallery.services.embedder import detect_faces
+
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    ensure_models()
+    path = Path(image_arg)
+    try:
+        faces, w, h = detect_faces(path)
+        print(f"OK faces={len(faces)} size={w}x{h}")
+        return 0
+    except Exception as exc:
+        print(f"FAIL {type(exc).__name__}: {exc}")
+        import traceback
+
+        traceback.print_exc()
+        return 1
+
+
 def main() -> None:
     import uvicorn
+
+    if "--test-detect" in sys.argv:
+        idx = sys.argv.index("--test-detect")
+        if idx + 1 >= len(sys.argv):
+            print("Usage: api --test-detect <image-path>")
+            raise SystemExit(2)
+        raise SystemExit(_run_test_detect(sys.argv[idx + 1]))
 
     settings = get_settings()
     port = settings.api_port
@@ -80,7 +110,7 @@ def main() -> None:
         i = sys.argv.index("--port")
         port = int(sys.argv[i + 1])
     uvicorn.run(
-        "face_gallery.main:app",
+        app,
         host=settings.api_host,
         port=port,
         reload=False,

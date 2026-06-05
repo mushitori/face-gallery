@@ -17,10 +17,16 @@ const { online, checking } = useApiHealth()
         </nav>
         <span
           class="status-pill"
-          :class="{ ok: online, bad: !online && !checking }"
+          :class="{ ok: online, bad: !online && !checking, wait: checking && !online }"
         >
           <span class="dot" />
-          {{ checking ? 'API…' : online ? 'API online' : 'API offline' }}
+          {{
+            checking && !online
+              ? 'Connecting…'
+              : online
+                ? 'API online'
+                : 'API offline'
+          }}
         </span>
       </header>
     </div>
