@@ -82,7 +82,7 @@ def main() -> None:
         i = sys.argv.index("--port")
         port = int(sys.argv[i + 1])
     uvicorn.run(
-        "face_gallery.main:app",
+        app,
         host=settings.api_host,
         port=port,
         reload=False,

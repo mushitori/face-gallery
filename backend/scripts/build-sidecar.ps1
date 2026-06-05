@@ -9,16 +9,30 @@ Set-Location $Root
 uv sync
 
 $Entry = Join-Path $Root "src\face_gallery\main.py"
+$Schema = Join-Path $Root "src\face_gallery\db\schema.sql"
 $BuildDir = Join-Path $Root "build\pyinstaller"
-$DistDir = Join-Path $Root "dist\api"
+$DistDir = Join-Path $Root "dist"
 
+if (-not (Test-Path $Schema)) {
+  throw "Database schema not found: $Schema"
+}
+
+# Tauri externalBin expects a single executable per target triple (--onefile).
+# Do not use --onedir: copying only api.exe leaves out _internal/ and the sidecar cannot start.
 uv run pyinstaller `
   --noconfirm `
   --clean `
-  --onedir `
+  --onefile `
   --name api `
-  --distpath (Join-Path $Root "dist") `
+  --distpath $DistDir `
   --workpath $BuildDir `
+  --paths (Join-Path $Root "src") `
+  --add-data "${Schema};face_gallery/db" `
+  --hidden-import=face_gallery `
+  --hidden-import=face_gallery.main `
+  --hidden-import=face_gallery.config `
+  --hidden-import=face_gallery.ml.model_setup `
+  --hidden-import=face_gallery.ml.insightface_app `
   --hidden-import=uvicorn.logging `
   --hidden-import=uvicorn.loops `
   --hidden-import=uvicorn.loops.auto `
@@ -41,5 +55,4 @@ if (-not (Test-Path $SourceExe)) {
 Copy-Item $SourceExe (Join-Path $OutDir $TargetName) -Force
 Write-Host "Sidecar built: $(Join-Path $OutDir $TargetName)"
 Write-Host ""
-Write-Host "Before pnpm tauri:build, add to src-tauri/tauri.conf.json under bundle:"
-Write-Host '  "externalBin": ["binaries/api"]'
+Write-Host "Rebuild the installer from repo root: pnpm tauri:build"
