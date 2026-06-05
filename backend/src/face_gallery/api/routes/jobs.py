@@ -19,6 +19,7 @@ Bucket = Literal["active", "queue", "history"]
 
 QUEUE_WHERE = "j.status IN ('queued', 'paused')"
 HISTORY_WHERE = "j.status IN ('done', 'failed', 'cancelled')"
+RETRYABLE_STATUSES = ("cancelled", "failed")
 
 
 def _fetch_jobs(
@@ -214,10 +215,10 @@ def retry_job(job_id: int, db: Session = Depends(get_db)) -> Response:
     ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Job not found")
-    if row[1] != "cancelled":
+    if row[1] not in RETRYABLE_STATUSES:
         raise HTTPException(
             status_code=409,
-            detail="Job can only be retried while cancelled",
+            detail="Job can only be retried while cancelled or failed",
         )
     library_id = int(row[0])
     if library_has_active_job(db, library_id):
@@ -235,11 +236,14 @@ def retry_job(job_id: int, db: Session = Depends(get_db)) -> Response:
             message = 'Queued',
             pause_requested = 0,
             updated_at = datetime('now')
-        WHERE id = :id AND status = 'cancelled'
+        WHERE id = :id AND status IN ('cancelled', 'failed')
         """,
         {},
     )
     if n == 0:
-        raise HTTPException(status_code=409, detail="Job can only be retried while cancelled")
+        raise HTTPException(
+            status_code=409,
+            detail="Job can only be retried while cancelled or failed",
+        )
     notify_worker()
     return Response(status_code=204)

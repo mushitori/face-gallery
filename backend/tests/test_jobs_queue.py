@@ -192,6 +192,27 @@ def test_retry_cancelled_job(_mock_start, _mock_stop, test_db):
 
 @patch("face_gallery.main.stop_queue_worker")
 @patch("face_gallery.main.start_queue_worker")
+def test_retry_failed_job(_mock_start, _mock_stop, test_db):
+    lid = _insert_library(test_db)
+    failed_id = _insert_job(lid, "failed", message="RuntimeError: test")
+    with TestClient(create_app()) as client:
+        with patch("face_gallery.api.routes.jobs.notify_worker") as notify:
+            r = client.post(f"/jobs/{failed_id}/retry")
+            assert r.status_code == 204
+            notify.assert_called_once()
+        engine = get_engine()
+        with engine.begin() as conn:
+            row = conn.execute(
+                text("SELECT status, progress, message FROM jobs WHERE id = :id"),
+                {"id": failed_id},
+            ).fetchone()
+        assert row[0] == "queued"
+        assert row[1] == 0
+        assert row[2] == "Queued"
+
+
+@patch("face_gallery.main.stop_queue_worker")
+@patch("face_gallery.main.start_queue_worker")
 def test_retry_cancelled_409_when_library_busy(_mock_start, _mock_stop, test_db):
     lid = _insert_library(test_db)
     _insert_job(lid, "queued")

@@ -9,6 +9,10 @@ const manualPath = ref('')
 const busy = ref(false)
 const error = ref<string | null>(null)
 
+function clearSelection() {
+  manualPath.value = ''
+}
+
 async function pickFolder() {
   error.value = null
   try {
@@ -16,7 +20,6 @@ async function pickFolder() {
     const selected = await open({ directory: true, multiple: false })
     if (selected && typeof selected === 'string') {
       manualPath.value = selected
-      await submit()
     }
   } catch {
     error.value =
@@ -30,7 +33,8 @@ async function submit() {
   busy.value = true
   error.value = null
   try {
-    emit('add', p)
+    await emit('add', p)
+    clearSelection()
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -75,6 +79,7 @@ async function submit() {
   padding: 1.5rem 1.5rem 1.35rem;
   height: 100%;
   min-height: 320px;
+  max-height: 350px;
   display: flex;
   flex-direction: column;
 }

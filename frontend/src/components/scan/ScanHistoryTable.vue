@@ -70,7 +70,7 @@ const emit = defineEmits<{
             <td class="duration">{{ formatDurationMs(jobElapsedMs(job)) }}</td>
             <td class="actions">
               <button
-                v-if="job.status === 'cancelled'"
+                v-if="job.status === 'cancelled' || job.status === 'failed'"
                 type="button"
                 class="btn btn-sm"
                 :disabled="disabled"
