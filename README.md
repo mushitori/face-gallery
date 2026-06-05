@@ -26,7 +26,7 @@ Offline desktop app to organize photos by person. **Vue 3 + Tauri v2** UI, **Fas
 - [uv](https://docs.astral.sh/uv/) (Python 3.11)
 - [Rust](https://rustup.rs/) + MSVC (for Tauri builds only)
 - **New terminal** after installing Rust so `cargo` is on `PATH` (`%USERPROFILE%\.cargo\bin`)
-- InsightFace `buffalo_l` models in `backend/models/buffalo_l/` (see [backend/models/buffalo_l/.gitkeep](backend/models/buffalo_l/.gitkeep))
+- Network access on first API startup (InsightFace `buffalo_l` models download automatically; see [Offline models](#offline-models))
 
 ## Project layout
 
@@ -128,6 +128,7 @@ Environment prefix `FACE_GALLERY_`:
 | Variable | Default |
 |----------|---------|
 | `FACE_GALLERY_API_PORT` | `28765` |
+| `FACE_GALLERY_MODEL_DIR` | auto (`%LOCALAPPDATA%\FaceGallery\models\buffalo_l\`, or repo bundle if present) |
 | `FACE_GALLERY_DBSCAN_EPS` | `0.45` |
 | `FACE_GALLERY_SCAN_RESIZE_LONG_EDGE` | `1024` |
 
@@ -135,9 +136,11 @@ Data directory: `%LOCALAPPDATA%\FaceGallery\` (database + thumb cache).
 
 ## Offline models
 
-On first scan, InsightFace downloads `buffalo_l` into `%LOCALAPPDATA%\FaceGallery\models\buffalo_l\`. If you see an extra nested `models\models\buffalo_l` folder from an older build, restart the API once — it will move `.onnx` files to the correct location automatically.
+On first API startup, the backend downloads InsightFace `buffalo_l` into `%LOCALAPPDATA%\FaceGallery\models\buffalo_l\` (requires network once). On every restart it verifies required model files are present and re-downloads if any are missing. If download fails, the API exits immediately.
 
-For fully offline installs, extract [buffalo_l.zip](https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip) into `backend/models/buffalo_l/` or `%LOCALAPPDATA%\FaceGallery\models\buffalo_l\`.
+If you see an extra nested `models\models\buffalo_l` folder from an older build, restart the API once — it will move `.onnx` files to the correct location automatically.
+
+For fully offline installs, extract [buffalo_l.zip](https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip) into `backend/models/buffalo_l/` or `%LOCALAPPDATA%\FaceGallery\models\buffalo_l\` before starting the API.
 
 
 ## Third-party models

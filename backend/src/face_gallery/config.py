@@ -51,10 +51,11 @@ class Settings(BaseSettings):
 
         self.app_data_dir.mkdir(parents=True, exist_ok=True)
         self.thumb_cache_dir.mkdir(parents=True, exist_ok=True)
-        canonical.mkdir(parents=True, exist_ok=True)
+        (self.app_data_dir / "models").mkdir(parents=True, exist_ok=True)
 
         # Earlier builds used root=.../models, so InsightFace downloaded to models/models/buffalo_l
         if legacy.is_dir() and any(legacy.glob("*.onnx")) and not any(canonical.glob("*.onnx")):
+            canonical.mkdir(parents=True, exist_ok=True)
             for onnx in legacy.glob("*.onnx"):
                 shutil.move(str(onnx), str(canonical / onnx.name))
             self.model_dir = canonical

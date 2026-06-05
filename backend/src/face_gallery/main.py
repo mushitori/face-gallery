@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from face_gallery.api.routes import health, jobs, libraries, persons, thumbs
 from face_gallery.config import get_settings
 from face_gallery.db.connection import init_db
+from face_gallery.ml.model_setup import ensure_models
 from face_gallery.services.queue_worker import (
     reset_stuck_jobs_on_startup,
     start_queue_worker,
@@ -27,6 +28,7 @@ async def lifespan(_app: FastAPI):
     logging.getLogger("face_gallery").setLevel(logging.INFO)
     settings = get_settings()
     settings.resolve_paths()
+    ensure_models()
     init_db()
     n = reset_stuck_jobs_on_startup()
     if n:
