@@ -3,6 +3,7 @@ name = "face-gallery"
 version = "0.1.0"
 description = "Offline face photo organizer API"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
     "aiosqlite>=0.22.1",

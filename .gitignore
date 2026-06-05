@@ -1,9 +1,14 @@
 node_modules/
 frontend/dist/
 .DS_Store
+Thumbs.db
 *.log
 
 */__pycache__
+*.py[cod]
+*.pyo
+.pytest_cache/
+.ruff_cache/
 
 backend/.venv/
 backend/dist/
@@ -11,6 +16,8 @@ backend/build/
 backend/**/*.db
 backend/.pytest_cache/
 backend/.ruff_cache/
+backend/models/**/*.onnx
+backend/models/**/*.zip
 
 src-tauri/target/
 src-tauri/binaries/*
@@ -19,3 +26,4 @@ src-tauri/gen/
 
 .env
 .env.local
+.env.*.local

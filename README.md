@@ -1,6 +1,23 @@
 # Face Gallery
 
-Offline desktop app to organize photos by person. **Vue 3 + Tauri v2** UI, **FastAPI + InsightFace** Python backend, **SQLite** index. All processing stays on your machine.
+Offline desktop app to organize photos by person. **Vue 3 + Tauri v2** UI, **FastAPI + InsightFace** Python backend, **SQLite** index. All processing stays on your machine — no cloud uploads.
+
+## Features
+
+- Add local photo folders as libraries and scan them on demand
+- Detect faces with InsightFace and cluster them into people
+- Browse people and photos with a virtualized grid and lightbox
+- FIFO scan queue with progress, history, and safe resume after restarts
+- Fully offline after models are installed
+
+## Stack
+
+| Layer | Tech |
+|-------|------|
+| Desktop shell | Tauri v2 |
+| UI | Vue 3, TypeScript, Vite, Pinia |
+| API | FastAPI, SQLite |
+| ML | InsightFace (`buffalo_l`), ONNX Runtime |
 
 ## Prerequisites (Windows)
 
@@ -46,22 +63,11 @@ uv sync
 
 API: http://127.0.0.1:28765/docs
 
-### 2. Frontend (terminal 2)
-
-```powershell
-cd frontend
-pnpm install
-pnpm dev
-```
-
-Open http://localhost:5173 (browser works without Tauri).
-
-### 3. Tauri desktop (terminal 3, optional)
+### 3. Tauri desktop (terminal 2)
 
 Start the API first, then from the **repo root** (not `frontend/`):
 
 ```powershell
-cd m:\projects\face-gallery
 pnpm install
 pnpm tauri:dev
 ```
@@ -133,8 +139,15 @@ On first scan, InsightFace downloads `buffalo_l` into `%LOCALAPPDATA%\FaceGaller
 
 For fully offline installs, extract [buffalo_l.zip](https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip) into `backend/models/buffalo_l/` or `%LOCALAPPDATA%\FaceGallery\models\buffalo_l\`.
 
-**0 persons after scan?** Earlier failed runs stored photos with `face_count = 0` but unchanged file dates, so the next scan skipped them. **Scan new/changed** now re-indexes those photos automatically. You can still use **Rescan all** (`?force=true`) to rebuild every face and person cluster from scratch.
+
+## Third-party models
+
+Face detection uses the InsightFace [`buffalo_l`](https://github.com/deepinsight/insightface) model pack. Download and license terms are provided by the InsightFace project. Model binaries are not included in this repository.
+
+## Contributing
+
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT
+[MIT](LICENSE) — free to use, modify, and distribute.

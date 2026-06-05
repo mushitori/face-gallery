@@ -2,7 +2,8 @@
 name = "face-gallery"
 version = "0.1.0"
 description = "Offline face photo organizer"
-authors = ["you"]
+authors = ["mushitori"]
+license = "MIT"
 edition = "2021"
 
 [lib]
