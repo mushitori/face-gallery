@@ -1,14 +1,59 @@
 # Face Gallery
 
-Offline desktop app to organize photos by person. **Vue 3 + Tauri v2** UI, **FastAPI + InsightFace** Python backend, **SQLite** index. All processing stays on your machine — no cloud uploads.
+Face Gallery is a **privacy-first desktop app** for Windows that helps you organize large photo collections by the people in them — without sending a single byte to the cloud.
+
+Most photo apps that group faces by person rely on online services: your images are uploaded, processed on someone else’s servers, and often used to train models or serve ads. Face Gallery takes the opposite approach. You point it at folders on your PC, it scans them locally with on-device face recognition, and builds a searchable index of **people** and **photos** that lives entirely on your machine.
+
+### Why we built this
+
+Personal photo libraries are sensitive. They contain family, friends, locations, and moments you may never want on a third-party server. We built Face Gallery for people who want **“find every photo of this person”** convenience without trading away privacy.
+
+- **Your photos never leave your device** — originals stay where they are; the app reads them from disk and never uploads them.
+- **Face detection and clustering run locally** — powered by [InsightFace](https://github.com/deepinsight/insightface) and ONNX Runtime on your device, not a remote API.
+- **Your index is local** — libraries, face embeddings, thumbnails, and scan history are stored in a SQLite database under your user profile, not in someone else’s cloud.
+- **No account, no telemetry, no subscription** — install the app, add folders, and use it offline once models are downloaded.
+
+The only network use is a **one-time download** of open face-recognition model weights (~200 MB) on first launch. After that, you can disconnect from the internet and keep scanning and browsing as usual.
+
+### How it works
+
+1. **Add a library** — choose a folder of photos (JPEG, PNG, etc.) on your computer.
+2. **Scan** — Face Gallery walks the folder, detects faces in each image, and groups similar faces into **people** using embedding clustering.
+3. **Browse** — open the people grid, pick someone, and scroll through every photo they appear in. Use the lightbox to view full-size images from their original paths on disk.
+
+Scans run in a background queue with progress, pause/resume, and history — so you can add several libraries or rescan after copying new photos without losing your place.
+
+Built with **Vue 3 + Tauri v2** (UI), **FastAPI + SQLite** (local API and index), and **InsightFace** (face ML). See [Stack](#stack) below for details.
+
+## Get Started
+
+The easiest way to use Face Gallery is to install the Windows app from the latest release — no Python, Node, or Rust setup required.
+
+1. **Download the installer** from the [latest release](https://github.com/mushitori/face-gallery/releases/latest) (`Face.Gallery_*_x64_en-US.msi`).
+2. **Run the MSI** and follow the setup wizard.
+3. **Launch Face Gallery** from the Start menu.
+
+**First launch**
+
+- The app needs a one-time internet connection to download face-recognition models (~200 MB). This usually takes 4–5 minutes; the window may show a loading state while the bundled API starts and models download.
+- After that, everything runs locally — your photos and face data stay on your machine.
+
+**Requirements**
+
+- Windows 10 or 11 (64-bit)
+- [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) (often already installed on Windows 11)
+
+To build from source or run in development mode, see [Development](#development) below.
+
 
 ## Features
 
-- Add local photo folders as libraries and scan them on demand
-- Detect faces with InsightFace and cluster them into people
-- Browse people and photos with a virtualized grid and lightbox
-- FIFO scan queue with progress, history, and safe resume after restarts
-- Fully offline after models are installed
+- **Local photo libraries** — add one or more folders; photos are referenced by path, not copied into the app
+- **On-device face detection** — InsightFace `buffalo_l` finds faces and computes embeddings without cloud calls
+- **Automatic people grouping** — similar faces cluster into persons you can browse and name
+- **Fast browsing** — virtualized photo grids and a lightbox for comfortable review of large libraries
+- **Scan queue** — FIFO jobs with progress, history, pause/cancel/resume, and safe recovery after restarts
+- **Offline-ready** — after the initial model download, the app works fully offline
 
 ## Stack
 
@@ -19,7 +64,17 @@ Offline desktop app to organize photos by person. **Vue 3 + Tauri v2** UI, **Fas
 | API | FastAPI, SQLite |
 | ML | InsightFace (`buffalo_l`), ONNX Runtime |
 
-## Prerequisites (Windows)
+## Development
+
+### Project layout
+
+| Path | Role |
+|------|------|
+| `frontend/` | Vue + TypeScript + Vite UI |
+| `backend/` | FastAPI, ML, SQLite (`uv` venv) |
+| `src-tauri/` | Tauri shell (spawn sidecar, dialogs) |
+
+### Prerequisites (Windows)
 
 - [Node.js](https://nodejs.org/) 20+
 - [pnpm](https://pnpm.io/) 9+
@@ -28,30 +83,6 @@ Offline desktop app to organize photos by person. **Vue 3 + Tauri v2** UI, **Fas
 - **New terminal** after installing Rust so `cargo` is on `PATH` (`%USERPROFILE%\.cargo\bin`)
 - Network access on first API startup (InsightFace `buffalo_l` models download automatically; see [Offline models](#offline-models))
 
-## Project layout
-
-| Path | Role |
-|------|------|
-| `frontend/` | Vue + TypeScript + Vite UI |
-| `backend/` | FastAPI, ML, SQLite (`uv` venv) |
-| `src-tauri/` | Tauri shell (spawn sidecar, dialogs) |
-
-## Troubleshooting
-
-**`WinError 10013` or port in use** — Another process is holding the API port. Check with `netstat -ano | findstr :28765`, then stop that PID in Task Manager, or use a different port:
-
-```powershell
-$env:FACE_GALLERY_API_PORT = "28766"
-.\scripts\dev.ps1
-```
-
-Update `frontend/.env` to match: `VITE_API_BASE=http://127.0.0.1:28766`
-
-**Tauri: "Couldn't recognize the current folder"** — Run `pnpm tauri:dev` from `face-gallery/` (repo root), not from `frontend/`.
-
-**`cargo` not found** — Close and reopen PowerShell (or VS Code/Cursor terminal) after `rustup` install.
-
-## Development
 
 ### 1. Backend (terminal 1)
 
@@ -75,6 +106,21 @@ pnpm tauri:dev
 First `pnpm install` in `frontend/` may prompt to allow `esbuild` build scripts — accept, or run `pnpm approve-builds` in `frontend/`.
 
 In **debug** mode, Tauri does not spawn Python; it waits for the API from step 1. No Python `.exe` sidecar is needed for dev.
+
+## Troubleshooting
+
+**`WinError 10013` or port in use** — Another process is holding the API port. Check with `netstat -ano | findstr :28765`, then stop that PID in Task Manager, or use a different port:
+
+```powershell
+$env:FACE_GALLERY_API_PORT = "28766"
+.\scripts\dev.ps1
+```
+
+Update `frontend/.env` to match: `VITE_API_BASE=http://127.0.0.1:28766`
+
+**Tauri: "Couldn't recognize the current folder"** — Run `pnpm tauri:dev` from `face-gallery/` (repo root), not from `frontend/`.
+
+**`cargo` not found** — Close and reopen PowerShell (or VS Code/Cursor terminal) after `rustup` install.
 
 ## Build Windows installer from source
 
